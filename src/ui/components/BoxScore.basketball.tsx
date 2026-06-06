@@ -267,6 +267,12 @@ const BoxScore = ({
 							season={boxScore.season}
 							t={t}
 						/>
+						<div className="text-body-secondary small mb-1">
+							Points in paint: {2 * ((t.fgAtRim ?? 0) + (t.fgLowPost ?? 0))} ·
+							Fast break points: {t.fbp === undefined ? "—" : t.fbp} · Second chance points:{" "}
+							{t.scp === undefined ? "—" : t.scp}
+						</div>
+						</div>
 					</div>
 				);
 			})}
