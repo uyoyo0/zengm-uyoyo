@@ -1,8 +1,11 @@
+import { FATIGUE_POS } from "../../../common/constants.football.ts";
+import { posRatings } from "../../../common/posRatings.ts";
 import { bySport } from "../../../common/sportFunctions.ts";
+import { ratingsGradientStyle } from "../../components/RatingsStatsPopover/ratingsGradientStyle.ts";
 import { RatingWithChange } from "../../components/RatingWithChange.tsx";
-import type { ReactNode } from "react";
+import { type ReactNode } from "react";
 
-const RatingsOverview = ({
+export const RatingsOverview = ({
 	ratings,
 	season,
 }: {
@@ -464,6 +467,25 @@ const RatingsOverview = ({
 		],
 	});
 
+	// Generic physical ratings not included in posRatings
+	const toHighlightPhysical = bySport({
+		baseball:
+			currentSeason.pos === "SP" || currentSeason.pos === "RP"
+				? []
+				: ["hgt", "spd"],
+		basketball: [],
+		football: FATIGUE_POS.has(currentSeason.pos)
+			? ["hgt", "stre", "spd", "endu"]
+			: ["hgt", "stre", "spd"],
+		hockey: currentSeason.pos === "G" ? [] : ["hgt", "stre", "spd", "endu"],
+	});
+
+	// For non-basketball sports, only highlight ratings that are relevant to position
+	const toHighlight = new Set([
+		...toHighlightPhysical,
+		...posRatings(currentSeason.pos),
+	]);
+
 	return (
 		<div className="ratings-overview">
 			<div className="d-flex justify-content-between">
@@ -485,27 +507,51 @@ const RatingsOverview = ({
 					<div key={i} className={i === 0 ? undefined : "ms-2 ms-sm-5"}>
 						{Object.entries(column).map(([name, categories], j) => (
 							<div key={name} className={j === 0 ? undefined : "mt-2"}>
+								<div className="fw-bold">
+									{name}
+									<div
+										className="ratings-overview-title-underline"
+										style={{
+											height: 2,
+											width: "100%",
+											marginTop: -4,
+										}}
+									/>
+								</div>
 								<table>
-									<thead>
-										<tr className="border-bottom">
-											<th className="p-0" colSpan={2}>
-												{name}
-											</th>
-										</tr>
-									</thead>
 									<tbody>
-										{categories.map(({ label, rating }, j) => (
-											<tr key={j}>
-												<td className="p-0">{label}:</td>
-												<td className="p-0 ps-1">
-													<RatingWithChange
-														change={currentSeason[rating] - lastSeason[rating]}
-													>
-														{currentSeason[rating]}
-													</RatingWithChange>
-												</td>
-											</tr>
-										))}
+										{categories.map(({ label, rating }, j) => {
+											const highlightStyle = toHighlight.has(rating)
+												? ratingsGradientStyle(currentSeason[rating])
+												: undefined;
+											const current = currentSeason[rating];
+											const paddingTop = { paddingTop: 2 };
+											return (
+												<tr key={j}>
+													<td className="px-0 pb-0" style={paddingTop}>
+														<div className="flex-grow-1">
+															<div className="d-flex">
+																<span>{label}:&nbsp;</span>
+																<span className="ms-auto">{current}</span>
+															</div>
+															<div
+																style={{
+																	...highlightStyle,
+																	height: 2,
+																	width: `${current < 50 ? 100 - current : current}%`,
+																	marginTop: -4,
+																}}
+															/>
+														</div>
+													</td>
+													<td className="px-0 pb-0 ps-1" style={paddingTop}>
+														<RatingWithChange
+															change={current - lastSeason[rating]}
+														/>
+													</td>
+												</tr>
+											);
+										})}
 									</tbody>
 								</table>
 							</div>
@@ -516,5 +562,3 @@ const RatingsOverview = ({
 		</div>
 	);
 };
-
-export default RatingsOverview;

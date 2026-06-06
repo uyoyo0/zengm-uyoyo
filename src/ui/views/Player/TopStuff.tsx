@@ -11,8 +11,8 @@ import type {
 } from "../../../common/types.ts";
 import { PHASE, PLAYER } from "../../../common/constants.ts";
 import clsx from "clsx";
-import AwardsSummary from "./AwardsSummary.tsx";
-import RatingsOverview from "./RatingsOverview.tsx";
+import { AwardsSummary } from "./AwardsSummary.tsx";
+import { RatingsOverview } from "./RatingsOverview.tsx";
 import Note from "./Note.tsx";
 import { ButtonGroup, Dropdown, DropdownButton } from "react-bootstrap";
 import { CountryFlag } from "../../components/CountryFlag.tsx";
@@ -486,6 +486,9 @@ const TopStuff = ({
 
 	const showRatingsOverview = (!retired || season !== undefined) && showRatings;
 
+	// Without this, vertical scrollbar shows if there are no jerseys, due to some weirdness with the negative marginTop values in RatingsOverview
+	const PLACEHOLDER = <div style={{ height: 2 }}></div>;
+
 	return (
 		<div className="mb-3">
 			<div className="d-sm-flex align-items-start">
@@ -734,7 +737,9 @@ const TopStuff = ({
 								);
 							})}
 						</div>
-					) : null}
+					) : (
+						PLACEHOLDER
+					)}
 				</div>
 			</div>
 

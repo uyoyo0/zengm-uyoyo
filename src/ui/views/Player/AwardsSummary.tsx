@@ -7,7 +7,7 @@ const style = {
 	maxWidth: 520,
 };
 
-const AwardsSummary = ({ awards }: { awards: Player["awards"] }) => {
+export const AwardsSummary = ({ awards }: { awards: Player["awards"] }) => {
 	if (awards.length === 0) {
 		return null;
 	}
@@ -17,15 +17,21 @@ const AwardsSummary = ({ awards }: { awards: Player["awards"] }) => {
 	return (
 		<div style={style}>
 			{awardsGrouped.map((a, i) => {
-				let title = a.seasons.join(", ");
-				if (a.long !== a.type) {
-					title += ` - ${a.long}`;
-				}
-
+				const seasons = a.seasons.join(", ");
 				return (
 					<OverlayTrigger
 						key={i}
-						overlay={<Tooltip>{title}</Tooltip>}
+						overlay={
+							<Tooltip>
+								{seasons}
+								{a.long !== a.type ? (
+									<>
+										<br />
+										{a.long}
+									</>
+								) : null}
+							</Tooltip>
+						}
 						placement="bottom"
 					>
 						<span
@@ -42,5 +48,3 @@ const AwardsSummary = ({ awards }: { awards: Player["awards"] }) => {
 		</div>
 	);
 };
-
-export default AwardsSummary;
