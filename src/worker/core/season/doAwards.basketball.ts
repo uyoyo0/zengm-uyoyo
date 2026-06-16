@@ -17,6 +17,7 @@ import type {
 } from "../../../common/types.ts";
 import type {
 	AwardPlayer,
+	AwardPlayerClutch,
 	AwardPlayerDefense,
 	Awards,
 } from "../../../common/types.basketball.ts";
@@ -51,6 +52,25 @@ const getTopPlayersOffense = (
 	playersUnsorted: PlayerFiltered[],
 ): AwardPlayer[] => {
 	return getTopPlayers(options, playersUnsorted).map(getPlayerInfoOffense);
+};
+
+// Basketball award stats are per-game, so the season total is clutchPts * gp.
+const getPlayerInfoClutch = (p: PlayerFiltered): AwardPlayerClutch => {
+	const gp = p.currentStats.gp;
+	return {
+		pid: p.pid,
+		name: p.name,
+		tid: p.tid,
+		clutchPts: (p.currentStats.clutchPts ?? 0) * gp,
+		gp,
+	};
+};
+
+const getTopPlayersClutch = (
+	options: GetTopPlayersOptions,
+	playersUnsorted: PlayerFiltered[],
+): AwardPlayerClutch[] => {
+	return getTopPlayers(options, playersUnsorted).map(getPlayerInfoClutch);
 };
 
 const getTopPlayersDefense = (
@@ -633,12 +653,13 @@ const doAwards = async (conditions: Conditions) => {
 	// Clutch Player of the Year: most points scored late in close games. Require
 	// a meaningful sample of games so it isn't a small-sample fluke.
 	const clutchMinGames = Math.round(0.5 * g.get("numGames"));
-	const [clutchPoy] = getTopPlayersOffense(
+	const [clutchPoy] = getTopPlayersClutch(
 		{
 			filter: (p) =>
 				(p.currentStats.clutchPts ?? 0) > 0 &&
 				p.currentStats.gp >= clutchMinGames,
-			score: (p) => p.currentStats.clutchPts ?? 0,
+			// Season total clutch points (per-game stat × games played).
+			score: (p) => (p.currentStats.clutchPts ?? 0) * p.currentStats.gp,
 		},
 		players,
 	);

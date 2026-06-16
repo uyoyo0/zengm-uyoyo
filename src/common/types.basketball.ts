@@ -86,6 +86,14 @@ export type AwardPlayerDefense = {
 	stl: number;
 };
 
+export type AwardPlayerClutch = {
+	pid: number;
+	name: string;
+	tid: number;
+	clutchPts: number; // season total
+	gp: number;
+};
+
 export type Awards<
 	PlayerOverride = AwardPlayer,
 	PlayerDefenseOverride = AwardPlayerDefense,
@@ -137,7 +145,7 @@ export type Awards<
 	finalsMvp: PlayerOverride | undefined;
 	sfmvp: PlayerOverride[] | undefined;
 	coachOfTheYear?: AwardCoach;
-	clutchPoy?: PlayerOverride | undefined;
+	clutchPoy?: AwardPlayerClutch | undefined;
 };
 
 export type PlayerRatings = {
