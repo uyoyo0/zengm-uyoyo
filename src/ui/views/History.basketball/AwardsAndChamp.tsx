@@ -146,6 +146,42 @@ const AwardsAndChamp = ({
 				<Winner award={awards.smoy} season={season} userTid={userTid} />
 				<h2>{AWARD_NAMES.mip}</h2>
 				<Winner award={awards.mip} season={season} userTid={userTid} />
+				{awards.clutchPoy ? (
+					<>
+						<h2>{AWARD_NAMES.clutchPoy}</h2>
+						<p>
+							<span
+								className={
+									awards.clutchPoy.tid === userTid ? "table-info" : undefined
+								}
+							>
+								<b>
+									<a href={helpers.leagueUrl(["player", awards.clutchPoy.pid])}>
+										{awards.clutchPoy.name}
+									</a>
+								</b>{" "}
+								(
+								<a
+									href={helpers.leagueUrl([
+										"roster",
+										`${(awards.clutchPoy as any).abbrev}_${awards.clutchPoy.tid}`,
+										season,
+									])}
+								>
+									{(awards.clutchPoy as any).abbrev}
+								</a>
+								)
+							</span>
+							<br />
+							{awards.clutchPoy.clutchPts} clutch pts,{" "}
+							{(awards.clutchPoy.gp > 0
+								? awards.clutchPoy.clutchPts / awards.clutchPoy.gp
+								: 0
+							).toFixed(1)}{" "}
+							per game
+						</p>
+					</>
+				) : null}
 				<h2>{AWARD_NAMES.roy}</h2>
 				<Winner award={awards.roy} season={season} userTid={userTid} />
 				{awards.coachOfTheYear ? (

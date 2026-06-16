@@ -86,6 +86,14 @@ export type AwardPlayerDefense = {
 	stl: number;
 };
 
+export type AwardPlayerClutch = {
+	pid: number;
+	name: string;
+	tid: number;
+	clutchPts: number; // season total
+	gp: number;
+};
+
 export type Awards<
 	PlayerOverride = AwardPlayer,
 	PlayerDefenseOverride = AwardPlayerDefense,
@@ -137,6 +145,7 @@ export type Awards<
 	finalsMvp: PlayerOverride | undefined;
 	sfmvp: PlayerOverride[] | undefined;
 	coachOfTheYear?: AwardCoach;
+	clutchPoy?: AwardPlayerClutch | undefined;
 };
 
 export type PlayerRatings = {
@@ -163,7 +172,24 @@ export type PlayerRatings = {
 	skills: string[];
 	stre: number;
 	tp: number;
+
+	// Behavioral tendencies (0-100, 50 = neutral). Bias how a player plays,
+	// independent of skill. Excluded from ovr/pot. Optional for old leagues.
+	tendencyUsage?: number; // looks for own shot
+	tendencyThree?: number; // chooses 3s over 2s
+	tendencyAtRim?: number; // attacks the rim
+	tendencyPost?: number; // posts up
+	tendencyPass?: number; // pass-first / playmaking
+	tendencyClutch?: number; // performs in late-game clutch situations
 };
+
+export type TendencyKey =
+	| "tendencyUsage"
+	| "tendencyThree"
+	| "tendencyAtRim"
+	| "tendencyPost"
+	| "tendencyPass"
+	| "tendencyClutch";
 
 export type RatingKey =
 	| "diq"
