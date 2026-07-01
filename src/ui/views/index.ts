@@ -66,6 +66,7 @@ export { default as LeadersYears } from "./LeadersYears.tsx";
 export { default as LeagueDashboard } from "./LeagueDashboard/index.tsx";
 export { default as LeagueFinances } from "./LeagueFinances.tsx";
 export { default as LeagueStats } from "./LeagueStats.tsx";
+export { default as Lineups } from "./Lineups.tsx";
 export { default as LiveGame } from "./LiveGame/index.tsx";
 export { default as LoginOrRegister } from "./LoginOrRegister/index.tsx";
 export { default as LostPassword } from "./LostPassword.tsx";

@@ -745,6 +745,7 @@ const deleteOldData = async (options: {
 			"events",
 			"games",
 			"headToHeads",
+			"lineups",
 			"teams",
 			"teamSeasons",
 			"teamStats",
@@ -782,6 +783,12 @@ const deleteOldData = async (options: {
 	}
 
 	if (options.teamStats) {
+		for await (const cursor of transaction.objectStore("lineups")) {
+			if (cursor.value.season < g.get("season")) {
+				await cursor.delete();
+			}
+		}
+
 		for await (const cursor of transaction.objectStore("teamStats")) {
 			if (cursor.value.season < g.get("season")) {
 				await cursor.delete();

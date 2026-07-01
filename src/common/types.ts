@@ -1562,6 +1562,22 @@ export type Coach = CoachWithoutKey & {
 	cid: number;
 };
 
+// A 5-man lineup's accumulated box-score totals for one team/season/phase. One
+// row per unique set of 5 players that shared the floor. Merged per game from
+// GameSim output in writeTeamStats.
+export type LineupWithoutKey = {
+	rid?: number;
+	tid: number;
+	season: number;
+	playoffs: boolean;
+	pids: number[]; // sorted, length 5 (or numPlayersOnCourt)
+	stats: LineupStatBasketball;
+};
+
+export type Lineup = LineupWithoutKey & {
+	rid: number;
+};
+
 export type Team = {
 	tid: number;
 	cid: number;
@@ -1679,7 +1695,10 @@ import type {
 	TeamStatAttr as TeamStatAttrBaseball,
 	TeamStatAttrByPos as TeamStatAttrByPosBaseball,
 } from "./types.baseball.ts";
-import type { TeamStatAttr as TeamStatAttrBasketball } from "./types.basketball.ts";
+import type {
+	TeamStatAttr as TeamStatAttrBasketball,
+	LineupStat as LineupStatBasketball,
+} from "./types.basketball.ts";
 import type { TeamStatAttr as TeamStatAttrFootball } from "./types.football.ts";
 import type { TeamStatAttr as TeamStatAttrHockey } from "./types.hockey.ts";
 import type { TIEBREAKERS } from "./constants.ts";

@@ -132,6 +132,18 @@ export const MoreLinks = (
 			},
 		];
 
+		// 5-man lineup net ratings (basketball only). Placed next to History since
+		// it's a season-scoped stats page.
+		if (isSport("basketball")) {
+			links.splice(5, 0, {
+				url:
+					season !== undefined
+						? ["lineups", `${abbrev}_${tid}`, season]
+						: ["lineups", `${abbrev}_${tid}`],
+				name: "Lineups",
+			});
+		}
+
 		if (
 			bySport({
 				baseball: true,

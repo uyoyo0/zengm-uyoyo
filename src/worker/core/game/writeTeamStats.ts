@@ -13,6 +13,7 @@ import winProbFromOvr from "../team/winProbFromOvr.ts";
 import getWinner from "../../../common/getWinner.ts";
 import { getAdjustedTicketPrice } from "../../../common/getAdjustedTicketPrice.ts";
 import { bySport, isSport } from "../../../common/sportFunctions.ts";
+import writeLineupStats from "./writeLineupStats.ts";
 
 const writeTeamStats = async (results: GameResults) => {
 	const allStarGame = results.team[0].id === -1 && results.team[1].id === -2;
@@ -483,6 +484,8 @@ const writeTeamStats = async (results: GameResults) => {
 		await idb.cache.teamSeasons.put(teamSeason);
 		await idb.cache.teamStats.put(teamStats);
 	}
+
+	await writeLineupStats(results);
 
 	return attendance;
 };

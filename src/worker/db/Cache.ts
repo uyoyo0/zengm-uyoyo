@@ -17,6 +17,8 @@ import type {
 	Game,
 	GameAttribute,
 	HeadToHead,
+	Lineup,
+	LineupWithoutKey,
 	Message,
 	MessageWithoutKey,
 	Negotiation,
@@ -63,6 +65,7 @@ export type Store =
 	| "gameAttributes"
 	| "games"
 	| "headToHeads"
+	| "lineups"
 	| "messages"
 	| "negotiations"
 	| "playerFeats"
@@ -82,6 +85,7 @@ type Index =
 	| "coachesByTid"
 	| "draftPicksBySeason"
 	| "draftPicksByTid"
+	| "lineupsByTidSeason"
 	| "playersByDraftYearRetiredYear"
 	| "playersByTid"
 	| "releasedPlayers"
@@ -100,6 +104,7 @@ export const STORES: Store[] = [
 	"gameAttributes",
 	"games",
 	"headToHeads",
+	"lineups",
 	"messages",
 	"negotiations",
 	"playerFeats",
@@ -275,6 +280,8 @@ class Cache {
 
 	headToHeads: StoreAPI<HeadToHead, HeadToHead, number>;
 
+	lineups: StoreAPI<LineupWithoutKey, Lineup, number>;
+
 	messages: StoreAPI<MessageWithoutKey, Message, number>;
 
 	negotiations: StoreAPI<Negotiation, Negotiation, number>;
@@ -399,6 +406,23 @@ class Cache {
 				autoIncrement: false,
 				// Current season
 				getData: (tx, season) => tx.objectStore("headToHeads").getAll(season),
+			},
+			lineups: {
+				pk: "rid",
+				pkType: "number",
+				autoIncrement: true,
+				// Current season
+				getData: (tx, season) =>
+					tx
+						.objectStore("lineups")
+						.index("season, tid")
+						.getAll(IDBKeyRange.bound([season], [season, ""])),
+				indexes: [
+					{
+						name: "lineupsByTidSeason",
+						key: ["tid", "season"],
+					},
+				],
 			},
 			messages: {
 				pk: "mid",
@@ -590,6 +614,7 @@ class Cache {
 		this.gameAttributes = new StoreAPI(this, "gameAttributes");
 		this.games = new StoreAPI(this, "games");
 		this.headToHeads = new StoreAPI(this, "headToHeads");
+		this.lineups = new StoreAPI(this, "lineups");
 		this.messages = new StoreAPI(this, "messages");
 		this.negotiations = new StoreAPI(this, "negotiations");
 		this.playerFeats = new StoreAPI(this, "playerFeats");

@@ -207,3 +207,46 @@ export type RatingKey =
 	| "spd"
 	| "stre"
 	| "tp";
+
+// Box-score totals accumulated for a single 5-man lineup (the set of players on
+// the floor together). Analogous to the per-player on/off tracking, but keyed on
+// the whole unit. min/poss/oppPoss are credited per possession; the rest are the
+// box stats recorded while that unit is on the floor. See GameSim.recordStat.
+export type LineupStat = {
+	min: number;
+	poss: number; // offensive possessions for this unit
+	oppPoss: number; // defensive possessions for this unit
+	pts: number;
+	oppPts: number;
+	fg: number;
+	fga: number;
+	tp: number;
+	tpa: number;
+	ft: number;
+	fta: number;
+	orb: number;
+	drb: number;
+	tov: number;
+	ast: number;
+	stl: number;
+	blk: number;
+	pf: number;
+};
+
+// Which recordStat stat names accumulate onto the on-court lineup. min/poss are
+// handled separately (per possession, not per recorded event).
+export type LineupStatKey =
+	| "pts"
+	| "fg"
+	| "fga"
+	| "tp"
+	| "tpa"
+	| "ft"
+	| "fta"
+	| "orb"
+	| "drb"
+	| "tov"
+	| "ast"
+	| "stl"
+	| "blk"
+	| "pf";
