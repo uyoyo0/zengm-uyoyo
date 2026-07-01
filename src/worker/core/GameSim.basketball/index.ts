@@ -201,9 +201,10 @@ type ClockFactor = ReturnType<GameSim["getClockFactor"]>;
 
 const teamNums: [TeamNum, TeamNum] = [0, 1];
 
-// recordStat stat names that accumulate onto the on-court 5-man lineup. min,
-// poss and oppPoss are handled separately (per possession, in updatePlayingTime),
-// and oppPts is credited to the opposing lineup when the scoring team records pts.
+// recordStat stat names that accumulate onto the on-court 5-man lineup. min is
+// handled separately (in updatePlayingTime), poss and oppPoss in simPossession
+// (once per true possession, skipping continuation segments like orbs), and
+// oppPts is credited to the opposing lineup when the scoring team records pts.
 const LINEUP_STAT_KEYS = new Set<LineupStatKey>([
 	"pts",
 	"fg",
@@ -975,18 +976,33 @@ class GameSim extends GameSimBase {
 		const clockFactor = this.getClockFactor();
 		const outcome = this.getPossessionOutcome(clockFactor);
 
-		// Swap o and d so that o will get another possession when they are swapped again at the beginning of the loop.
-		if (
+		// Outcomes where the offense keeps the ball, so the next simPossession call
+		// is a continuation of this same possession rather than a new one.
+		const keepPossession =
 			outcome === "orb" ||
 			outcome === "nonShootingFoul" ||
 			outcome === "timeout" ||
-			outcome === "outOfBoundsDefense"
-		) {
+			outcome === "outOfBoundsDefense";
+
+		// Swap o and d so that o will get another possession when they are swapped again at the beginning of the loop.
+		if (keepPossession) {
 			this.o = this.o === 1 ? 0 : 1;
 			this.d = this.o === 1 ? 0 : 1;
 		}
 
 		this.updatePlayingTime(dtInbound + this.possessionLength, offenseT);
+
+		// One offensive possession for the on-court unit with the ball and a
+		// defensive one for the opposing unit (the ORtg/DRtg denominators), but
+		// only once the possession actually ends - continuation segments (orb,
+		// non-shooting foul, etc.) are part of the same possession. This keeps
+		// lineup ratings on the same true-possession basis as team ORtg/pace,
+		// which use the basketball-reference possessions estimate.
+		if (!keepPossession) {
+			const defenseT = offenseT === 0 ? 1 : 0;
+			this.recordLineupStat(offenseT, "poss", 1);
+			this.recordLineupStat(defenseT, "oppPoss", 1);
+		}
 		const injuries = this.injuries();
 
 		this.prevPossessionOutcome = outcome;
@@ -1620,12 +1636,6 @@ class GameSim extends GameSimBase {
 			// floor for team t.
 			this.recordLineupStat(t, "min", min);
 		}
-
-		// One offensive possession for the team with the ball; the other team's
-		// unit gets a defensive possession. Used as the ORtg/DRtg denominators.
-		const defenseT = offenseT === 0 ? 1 : 0;
-		this.recordLineupStat(offenseT, "poss", 1);
-		this.recordLineupStat(defenseT, "oppPoss", 1);
 	}
 
 	/**
