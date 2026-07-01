@@ -8,6 +8,10 @@ import type {
 	TeamCoaching,
 	TeamNum,
 } from "../../../common/types.ts";
+import type {
+	LineupStat,
+	LineupStatKey,
+} from "../../../common/types.basketball.ts";
 import GameSimBase from "../GameSim/GameSimBase.ts";
 import { maxBy } from "../../../common/utils.ts";
 import {
@@ -197,6 +201,47 @@ type ClockFactor = ReturnType<GameSim["getClockFactor"]>;
 
 const teamNums: [TeamNum, TeamNum] = [0, 1];
 
+// recordStat stat names that accumulate onto the on-court 5-man lineup. min,
+// poss and oppPoss are handled separately (per possession, in updatePlayingTime),
+// and oppPts is credited to the opposing lineup when the scoring team records pts.
+const LINEUP_STAT_KEYS = new Set<LineupStatKey>([
+	"pts",
+	"fg",
+	"fga",
+	"tp",
+	"tpa",
+	"ft",
+	"fta",
+	"orb",
+	"drb",
+	"tov",
+	"ast",
+	"stl",
+	"blk",
+	"pf",
+]);
+
+const emptyLineupStat = (): LineupStat => ({
+	min: 0,
+	poss: 0,
+	oppPoss: 0,
+	pts: 0,
+	oppPts: 0,
+	fg: 0,
+	fga: 0,
+	tp: 0,
+	tpa: 0,
+	ft: 0,
+	fta: 0,
+	orb: 0,
+	drb: 0,
+	tov: 0,
+	ast: 0,
+	stl: 0,
+	blk: 0,
+	pf: 0,
+});
+
 // Return the indexes of the elements in ovrs, sorted from smallest to largest.
 // So [50, 70, 10, 20, 60] => [2, 3, 0, 4, 1]
 // The set is to handle ties.
@@ -293,6 +338,15 @@ class GameSim extends GameSimBase {
 	// or a second-chance possession (off an offensive rebound), for box-score stats.
 	fastBreak = false;
 	secondChance = false;
+
+	// Per-lineup box-score accumulation. One map per team, keyed by the sorted
+	// on-court pids ("12-45-88-103-220"). lineupKey caches the current key for each
+	// team so recordStat stays cheap; it's recomputed on every substitution.
+	lineups: [Map<string, LineupStat>, Map<string, LineupStat>] = [
+		new Map(),
+		new Map(),
+	];
+	lineupKey: [string, string] = ["", ""];
 
 	/**
 	 * Initialize the two teams that are playing this game.
@@ -504,6 +558,14 @@ class GameSim extends GameSimBase {
 			playByPlay: this.playByPlay.getPlayByPlay(this.team),
 			numPlayersOnCourt: this.numPlayersOnCourt,
 			neutralSite: this.neutralSite,
+			// Per-team 5-man lineup box-score totals for this game, merged into the
+			// season lineups store in writeTeamStats. Indexed [0, 1] like team.
+			lineups: teamNums.map((t) =>
+				[...this.lineups[t].entries()].map(([key, stat]) => ({
+					pids: key.split("-").map(Number),
+					stats: stat,
+				})),
+			),
 			// scoringSummary: this.playByPlay.scoringSummary,
 		};
 		return out;
@@ -1282,7 +1344,34 @@ class GameSim extends GameSimBase {
 			}
 		}
 
+		// Refresh the cached lineup keys now that the on-court sets are settled.
+		this.updateLineupKeys();
+
 		return substitutions;
+	}
+
+	// Recompute the current lineup key for each team from who's on the floor. The
+	// key is the sorted on-court pids, so a unit is the same regardless of the
+	// order players were subbed in.
+	updateLineupKeys() {
+		for (const t of teamNums) {
+			this.lineupKey[t] = this.playersOnCourt[t]
+				.slice(0, this.numPlayersOnCourt)
+				.map((p) => p.id)
+				.sort((a, b) => a - b)
+				.join("-");
+		}
+	}
+
+	// Add to the current on-court lineup's running box-score totals for team t.
+	recordLineupStat(t: TeamNum, key: keyof LineupStat, amt: number) {
+		const lineupKey = this.lineupKey[t];
+		let lineup = this.lineups[t].get(lineupKey);
+		if (lineup === undefined) {
+			lineup = emptyLineupStat();
+			this.lineups[t].set(lineupKey, lineup);
+		}
+		lineup[key] += amt;
 	}
 
 	/**
@@ -1526,7 +1615,17 @@ class GameSim extends GameSimBase {
 					}
 				}
 			}
+
+			// Credit this possession's minutes to whichever 5-man unit was on the
+			// floor for team t.
+			this.recordLineupStat(t, "min", min);
 		}
+
+		// One offensive possession for the team with the ball; the other team's
+		// unit gets a defensive possession. Used as the ORtg/DRtg denominators.
+		const defenseT = offenseT === 0 ? 1 : 0;
+		this.recordLineupStat(offenseT, "poss", 1);
+		this.recordLineupStat(defenseT, "oppPoss", 1);
 	}
 
 	/**
@@ -3192,6 +3291,16 @@ class GameSim extends GameSimBase {
 				if (onOKey !== undefined) {
 					for (let j = 0; j < this.numPlayersOnCourt; j++) {
 						this.playersOnCourt[t][j]!.stat[onOKey] += amt;
+					}
+				}
+
+				// Attribute box-score events to the 5-man unit on the floor (parallel
+				// to the on/off tracking above, but keyed on the whole lineup). Points
+				// also count against the opposing unit's oppPts.
+				if (LINEUP_STAT_KEYS.has(s as LineupStatKey)) {
+					this.recordLineupStat(t, s as LineupStatKey, amt);
+					if (s === "pts") {
+						this.recordLineupStat(t === 0 ? 1 : 0, "oppPts", amt);
 					}
 				}
 			}

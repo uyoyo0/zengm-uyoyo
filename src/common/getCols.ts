@@ -1203,6 +1203,12 @@ const sportSpecificCols = bySport<{
 			sortType: "number",
 			title: "PL",
 		},
+		"stat:poss": {
+			desc: "Possessions",
+			sortSequence: ["desc", "asc"],
+			sortType: "number",
+			title: "Poss",
+		},
 		"stat:pts": {
 			desc: "Points",
 			sortSequence: ["desc", "asc"],
@@ -3367,6 +3373,11 @@ const cols: {
 		width: "1px",
 		sortSequence: ["desc", "asc"],
 		sortType: "number",
+	},
+	Lineup: {
+		desc: "The five players on the floor together",
+		sortSequence: [],
+		noSearch: true,
 	},
 	Name: {},
 	Normal: {

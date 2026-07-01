@@ -46,6 +46,7 @@ import type {
 	SavedTrade,
 	SavedTradingBlock,
 	Coach,
+	Lineup,
 } from "../../common/types.ts";
 import getInitialNumGamesConfDivSettings from "../core/season/getInitialNumGamesConfDivSettings.ts";
 import { amountToLevel } from "../../common/budgetLevels.ts";
@@ -72,6 +73,14 @@ export interface LeagueDB extends DBSchema {
 		autoIncrementKeyPath: "cid";
 		indexes: {
 			tid: number;
+		};
+	};
+	lineups: {
+		key: number;
+		value: Lineup;
+		autoIncrementKeyPath: "rid";
+		indexes: {
+			"season, tid": [number, number];
 		};
 	};
 	draftLotteryResults: {
@@ -563,6 +572,11 @@ const create = (db: IDBPDatabase<LeagueDB>) => {
 		autoIncrement: true,
 	});
 	coachStore.createIndex("tid", "tid");
+	const lineupStore = db.createObjectStore("lineups", {
+		keyPath: "rid",
+		autoIncrement: true,
+	});
+	lineupStore.createIndex("season, tid", ["season", "tid"]);
 	db.createObjectStore("draftPicks", {
 		keyPath: "dpid",
 		autoIncrement: true,
@@ -1786,6 +1800,21 @@ const migrate = async ({
 			if (changed) {
 				await cursor.update(p);
 			}
+		}
+	}
+
+	if (oldVersion < 77) {
+		// Store for 5-man lineup box-score totals. No backfill — lineups accumulate
+		// going forward as games are simmed. Created for all sports (matching
+		// create()) so the cache never tries to load a missing store; it just stays
+		// empty for non-basketball. Idempotent because a DB may have reached v76
+		// mid-development before this store existed.
+		if (!db.objectStoreNames.contains("lineups")) {
+			const lineupStore = db.createObjectStore("lineups", {
+				keyPath: "rid",
+				autoIncrement: true,
+			});
+			lineupStore.createIndex("season, tid", ["season", "tid"]);
 		}
 	}
 

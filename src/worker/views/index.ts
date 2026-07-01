@@ -60,6 +60,7 @@ export { default as leadersYears } from "./leadersYears.ts";
 export { default as leagueDashboard } from "./leagueDashboard.ts";
 export { default as leagueFinances } from "./leagueFinances.ts";
 export { default as leagueStats } from "./leagueStats.ts";
+export { default as lineups } from "./lineups.ts";
 export { default as liveGame } from "./liveGame.ts";
 export { default as manageConfs } from "./manageConfs.ts";
 export { default as manageTeams } from "./manageTeams.ts";

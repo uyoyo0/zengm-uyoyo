@@ -825,6 +825,16 @@ const roster = (params: Params) => {
 	return { abbrev, playoffs: validateSeasonType(params.playoffs), season, tid };
 };
 
+const lineups = (params: Params) => {
+	const [tid, abbrev] = validateAbbrev(params.abbrev);
+	return {
+		abbrev,
+		tid,
+		season: validateSeason(params.season),
+		playoffs: validateSeasonType(params.playoffs),
+	};
+};
+
 const schedule = (params: Params) => {
 	const [tid, abbrev] = validateAbbrev(params.abbrev);
 	return { abbrev, tid };
@@ -1123,6 +1133,7 @@ export default {
 	leadersYears,
 	leagueFinances: validateSeasonOnly,
 	leagueStats,
+	lineups,
 	liveGame,
 	message,
 	most,
