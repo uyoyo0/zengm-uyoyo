@@ -1,26 +1,7 @@
 import { idb } from "../db/index.ts";
 import { g } from "../util/index.ts";
+import { deriveLineupStats } from "../../common/lineupStats.ts";
 import type { UpdateEvents, ViewInput, Lineup } from "../../common/types.ts";
-
-// Derived per-100-possession ratings and shooting splits for a lineup, using the
-// same definitions as advStats.basketball.ts so they reconcile with team stats.
-const deriveLineup = (l: Lineup) => {
-	const s = l.stats;
-	const tsa = s.fga + 0.44 * s.fta;
-	return {
-		ortg: s.poss > 0 ? (100 * s.pts) / s.poss : 0,
-		drtg: s.oppPoss > 0 ? (100 * s.oppPts) / s.oppPoss : 0,
-		net:
-			(s.poss > 0 ? (100 * s.pts) / s.poss : 0) -
-			(s.oppPoss > 0 ? (100 * s.oppPts) / s.oppPoss : 0),
-		efg: s.fga > 0 ? (100 * (s.fg + 0.5 * s.tp)) / s.fga : 0,
-		tsp: tsa > 0 ? (100 * s.pts) / (2 * tsa) : 0,
-		tovp: tsa + s.tov > 0 ? (100 * s.tov) / (tsa + s.tov) : 0,
-		// Possessions per 48 minutes (avg of the unit's offensive and defensive
-		// possessions), so pace is comparable to the team pace stat.
-		pace: s.min > 0 ? (48 * ((s.poss + s.oppPoss) / 2)) / s.min : 0,
-	};
-};
 
 const updateLineups = async (
 	inputs: ViewInput<"lineups">,
@@ -94,7 +75,7 @@ const updateLineups = async (
 					(pid) => playerByPid.get(pid) ?? { pid, name: "Unknown", pos: "" },
 				),
 				stats: l.stats,
-				...deriveLineup(l),
+				...deriveLineupStats(l.stats),
 			}))
 			.sort((a, b) => b.net - a.net);
 
