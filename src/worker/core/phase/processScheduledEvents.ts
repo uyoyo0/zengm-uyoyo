@@ -21,6 +21,7 @@ import local from "../../util/local.ts";
 import { last, orderBy } from "../../../common/utils.ts";
 import { getNumPlayersTradedAwayNormalizedAll } from "../../core/player/getNumPlayersTradedAwayNormalized.ts";
 import { applyRealTeamInfo } from "../../../common/applyRealTeamInfo.ts";
+import getRealTeamInfo from "../../util/getRealTeamInfo.ts";
 
 const processTeamInfo = async (
 	info: Extract<ScheduledEvent, { type: "teamInfo" }>["info"],
@@ -500,9 +501,7 @@ export const processScheduledEvents = async (
 	const scheduledEvents = await idb.cache.scheduledEvents.getAll();
 	const eventLogTexts: string[] = [];
 
-	const realTeamInfo = (await idb.meta.get("attributes", "realTeamInfo")) as
-		| RealTeamInfo
-		| undefined;
+	const realTeamInfo = await getRealTeamInfo();
 
 	const unretiredPids = [];
 

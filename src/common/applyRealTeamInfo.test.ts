@@ -12,12 +12,12 @@ beforeAll(async () => {
 test("works with no seasons", () => {
 	const teamsDefault = helpers.getTeamsDefault();
 	const t = generate(teamsDefault[0]);
-	assert.strictEqual(t.abbrev, "ATL");
-	assert.strictEqual(t.region, "Atlanta");
-	assert.strictEqual(t.name, "Gold Club");
-	assert.strictEqual(t.pop, 5.3);
-	assert.deepStrictEqual(t.colors, ["#291091", "#ae7c00", "#00d1df"]);
-	assert.strictEqual(t.imgURL, "/img/logos-primary/ATL.svg");
+	assert.strictEqual(t.abbrev, "BOS");
+	assert.strictEqual(t.region, "Boston");
+	assert.strictEqual(t.name, "Celtics");
+	assert.strictEqual(t.pop, 7.3);
+	assert.deepStrictEqual(t.colors, ["#ffffff", "#e70000", "#003188"]);
+	assert.strictEqual(t.imgURL, "/img/logos-primary/BOS.svg");
 	t.srID = "foo";
 
 	const realTeamInfo: RealTeamInfo = {

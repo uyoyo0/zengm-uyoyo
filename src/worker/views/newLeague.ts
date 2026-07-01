@@ -1,5 +1,6 @@
 import { idb } from "../db/index.ts";
-import type { ViewInput, RealTeamInfo } from "../../common/types.ts";
+import type { ViewInput } from "../../common/types.ts";
+import getRealTeamInfoWithFallback from "../util/getRealTeamInfo.ts";
 import { env } from "../util/env.ts";
 import type { Settings } from "./settings.ts";
 import { unwrapGameAttribute } from "../../common/unwrapGameAttribute.ts";
@@ -455,13 +456,10 @@ export const getDefaultSettings = () => {
 	return defaultSettings;
 };
 
-export const getRealTeamInfo = async () => {
-	const realTeamInfo = (await idb.meta.get("attributes", "realTeamInfo")) as
-		| RealTeamInfo
-		| undefined;
-
-	return realTeamInfo;
-};
+// The user's real team info, or the bundled real NBA names as a fallback (see
+// util/getRealTeamInfo.ts). Feeds the New League + Exhibition + Cross-Era UIs so
+// real names show without pasting anything into Settings → Real Data.
+export const getRealTeamInfo = getRealTeamInfoWithFallback;
 
 const updateNewLeague = async ({ lid, type }: ViewInput<"newLeague">) => {
 	const godModeLimits = newLeagueGodModeLimits();

@@ -53,7 +53,7 @@ test("return requested info if tid/season match", async () => {
 	assert(t.seasonAttrs.payroll > 0);
 	assert.deepStrictEqual(t, {
 		tid: 4,
-		abbrev: "CIN",
+		abbrev: "TOR",
 		seasonAttrs: {
 			season: g.get("season"),
 			won: 0,
@@ -79,7 +79,7 @@ test("return an array if no team ID is specified", async () => {
 	const t = teams[4];
 	assert.deepStrictEqual(t, {
 		tid: 4,
-		abbrev: "CIN",
+		abbrev: "TOR",
 		seasonAttrs: {
 			season: g.get("season"),
 			won: 0,
@@ -123,7 +123,7 @@ test("return requested info if tid/season match, even when no seasonAttrs reques
 	});
 	assert.deepStrictEqual(t, {
 		tid: 4,
-		abbrev: "CIN",
+		abbrev: "TOR",
 		stats: {
 			gp: 10,
 			fg: 5,
@@ -142,7 +142,7 @@ test("return requested info if tid/season match, even when no stats requested", 
 	});
 	assert.deepStrictEqual(t, {
 		tid: 4,
-		abbrev: "CIN",
+		abbrev: "TOR",
 		seasonAttrs: {
 			season: g.get("season"),
 			won: 0,

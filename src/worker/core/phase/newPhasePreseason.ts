@@ -18,11 +18,11 @@ import { g, helpers, local, logEvent, toUI } from "../../util/index.ts";
 import type {
 	Conditions,
 	PhaseReturn,
-	RealTeamInfo,
 	TeamSeason,
 } from "../../../common/types.ts";
 import { groupByUnique, maxBy } from "../../../common/utils.ts";
 import { applyRealTeamInfo } from "../../../common/applyRealTeamInfo.ts";
+import getRealTeamInfo from "../../util/getRealTeamInfo.ts";
 import { bySport, isSport } from "../../../common/sportFunctions.ts";
 import { choice, randInt, uniform } from "../../../common/random.ts";
 import { env } from "../../util/env.ts";
@@ -51,9 +51,7 @@ const newPhasePreseason = async (
 	const teams = await idb.cache.teams.getAll();
 	const teamsByTid = groupByUnique(teams, "tid");
 
-	const realTeamInfo = (await idb.meta.get("attributes", "realTeamInfo")) as
-		| RealTeamInfo
-		| undefined;
+	const realTeamInfo = await getRealTeamInfo();
 
 	const popInfo: Record<
 		string,

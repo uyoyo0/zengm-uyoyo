@@ -1,15 +1,14 @@
 import {
 	RealPlayerPhotosSchema,
-	RealTeamInfoSchema,
 	type Conditions,
 } from "../../../../common/types.ts";
 import { idb } from "../../../db/index.ts";
 import logEvent from "../../../util/logEvent.ts";
+import getRealTeamInfo from "../../../util/getRealTeamInfo.ts";
 
 const getRealTeamPlayerData = async (
 	{
 		fileHasPlayers,
-		fileHasTeams,
 	}: {
 		fileHasPlayers: boolean;
 		fileHasTeams: boolean;
@@ -17,48 +16,32 @@ const getRealTeamPlayerData = async (
 	conditions: Conditions | undefined,
 ) => {
 	let realPlayerPhotos;
-	let realTeamInfo;
-	if (fileHasPlayers || fileHasTeams) {
+	if (fileHasPlayers) {
 		const attributesStore = (await idb.meta.transaction("attributes")).store;
-		if (fileHasPlayers) {
-			const raw = await attributesStore.get("realPlayerPhotos");
-			if (raw !== undefined) {
-				const result = RealPlayerPhotosSchema.safeParse(raw);
-				if (result.success) {
-					realPlayerPhotos = result.data;
-				} else {
-					console.error(result.error);
-					logEvent(
-						{
-							type: "error",
-							text: "Invalid real player photos data ignored.",
-							saveToDb: false,
-						},
-						conditions,
-					);
-				}
-			}
-		}
-		if (fileHasTeams) {
-			const raw = await attributesStore.get("realTeamInfo");
-			if (raw !== undefined) {
-				const result = RealTeamInfoSchema.safeParse(raw);
-				if (result.success) {
-					realTeamInfo = result.data;
-				} else {
-					console.error(result.error);
-					logEvent(
-						{
-							type: "error",
-							text: "Invalid real team info data ignored.",
-							saveToDb: false,
-						},
-						conditions,
-					);
-				}
+		const raw = await attributesStore.get("realPlayerPhotos");
+		if (raw !== undefined) {
+			const result = RealPlayerPhotosSchema.safeParse(raw);
+			if (result.success) {
+				realPlayerPhotos = result.data;
+			} else {
+				console.error(result.error);
+				logEvent(
+					{
+						type: "error",
+						text: "Invalid real player photos data ignored.",
+						saveToDb: false,
+					},
+					conditions,
+				);
 			}
 		}
 	}
+
+	// Real team info (the user's, or the bundled real NBA names as a fallback).
+	// Applied to every team, but only affects teams with a matching srID — so it's
+	// a no-op for random leagues and gives real names to real-players / cross-era
+	// / legends leagues without the user pasting anything.
+	const realTeamInfo = await getRealTeamInfo();
 
 	return {
 		realPlayerPhotos,

@@ -298,217 +298,47 @@ const getTeamsDefault = (): TeamBasic[] => {
 			},
 		]);
 	} else if (isSport("basketball")) {
+		// The current 30 NBA franchises, in their real conferences/divisions
+		// (cid 0 = Eastern, 1 = Western; did 0 Atlantic, 1 Central, 2 Southeast,
+		// 3 Southwest, 4 Northwest, 5 Pacific — see DEFAULT_DIVS in
+		// constants.basketball.ts).
 		teams = getTeamInfos([
-			{
-				tid: 0,
-				cid: 0,
-				did: 2,
-
-				abbrev: "ATL",
-			},
-			{
-				tid: 1,
-				cid: 0,
-				did: 2,
-
-				abbrev: "BAL",
-			},
-			{
-				tid: 2,
-				cid: 0,
-				did: 0,
-
-				abbrev: "BOS",
-			},
-			{
-				tid: 3,
-				cid: 0,
-				did: 1,
-
-				abbrev: "CHI",
-			},
-			{
-				tid: 4,
-				cid: 0,
-				did: 1,
-
-				abbrev: "CIN",
-			},
-			{
-				tid: 5,
-				cid: 0,
-				did: 1,
-
-				abbrev: "CLE",
-			},
-			{
-				tid: 6,
-				cid: 1,
-				did: 3,
-
-				abbrev: "DAL",
-			},
-			{
-				tid: 7,
-				cid: 1,
-				did: 4,
-
-				abbrev: "DEN",
-			},
-			{
-				tid: 8,
-				cid: 0,
-				did: 1,
-
-				abbrev: "DET",
-			},
-			{
-				tid: 9,
-				cid: 1,
-				did: 3,
-
-				abbrev: "HOU",
-			},
-			{
-				tid: 10,
-				cid: 1,
-				did: 5,
-
-				abbrev: "LV",
-			},
-			{
-				tid: 11,
-				cid: 1,
-				did: 5,
-
-				abbrev: "LA",
-			},
-			{
-				tid: 12,
-				cid: 1,
-				did: 3,
-
-				abbrev: "MXC",
-			},
-			{
-				tid: 13,
-				cid: 0,
-				did: 2,
-
-				abbrev: "MIA",
-			},
-			{
-				tid: 14,
-				cid: 1,
-				did: 4,
-
-				abbrev: "MIN",
-			},
-			{
-				tid: 15,
-				cid: 0,
-				did: 0,
-
-				abbrev: "MON",
-			},
-			{
-				tid: 16,
-				cid: 0,
-				did: 0,
-
-				abbrev: "NYC",
-			},
-			{
-				tid: 17,
-				cid: 0,
-				did: 0,
-
-				abbrev: "PHI",
-			},
-			{
-				tid: 18,
-				cid: 1,
-				did: 3,
-
-				abbrev: "PHO",
-			},
-			{
-				tid: 19,
-				cid: 0,
-				did: 1,
-
-				abbrev: "PIT",
-			},
-			{
-				tid: 20,
-				cid: 1,
-				did: 4,
-
-				abbrev: "POR",
-			},
-			{
-				tid: 21,
-				cid: 1,
-				did: 5,
-
-				abbrev: "SAC",
-			},
-			{
-				tid: 22,
-				cid: 1,
-				did: 5,
-
-				abbrev: "SD",
-			},
-			{
-				tid: 23,
-				cid: 1,
-				did: 5,
-
-				abbrev: "SF",
-			},
-			{
-				tid: 24,
-				cid: 1,
-				did: 4,
-
-				abbrev: "SEA",
-			},
-			{
-				tid: 25,
-				cid: 1,
-				did: 3,
-
-				abbrev: "STL",
-			},
-			{
-				tid: 26,
-				cid: 0,
-				did: 2,
-
-				abbrev: "TPA",
-			},
-			{
-				tid: 27,
-				cid: 0,
-				did: 0,
-
-				abbrev: "TOR",
-			},
-			{
-				tid: 28,
-				cid: 1,
-				did: 4,
-
-				abbrev: "VAN",
-			},
-			{
-				tid: 29,
-				cid: 0,
-				did: 2,
-
-				abbrev: "WAS",
-			},
+			// Eastern — Atlantic
+			{ tid: 0, cid: 0, did: 0, abbrev: "BOS" },
+			{ tid: 1, cid: 0, did: 0, abbrev: "BKN" },
+			{ tid: 2, cid: 0, did: 0, abbrev: "NYC" },
+			{ tid: 3, cid: 0, did: 0, abbrev: "PHI" },
+			{ tid: 4, cid: 0, did: 0, abbrev: "TOR" },
+			// Eastern — Central
+			{ tid: 5, cid: 0, did: 1, abbrev: "CHI" },
+			{ tid: 6, cid: 0, did: 1, abbrev: "CLE" },
+			{ tid: 7, cid: 0, did: 1, abbrev: "DET" },
+			{ tid: 8, cid: 0, did: 1, abbrev: "IND" },
+			{ tid: 9, cid: 0, did: 1, abbrev: "MIL" },
+			// Eastern — Southeast
+			{ tid: 10, cid: 0, did: 2, abbrev: "ATL" },
+			{ tid: 11, cid: 0, did: 2, abbrev: "CHA" },
+			{ tid: 12, cid: 0, did: 2, abbrev: "MIA" },
+			{ tid: 13, cid: 0, did: 2, abbrev: "ORL" },
+			{ tid: 14, cid: 0, did: 2, abbrev: "WAS" },
+			// Western — Southwest
+			{ tid: 15, cid: 1, did: 3, abbrev: "DAL" },
+			{ tid: 16, cid: 1, did: 3, abbrev: "HOU" },
+			{ tid: 17, cid: 1, did: 3, abbrev: "MEM" },
+			{ tid: 18, cid: 1, did: 3, abbrev: "NOL" },
+			{ tid: 19, cid: 1, did: 3, abbrev: "SA" },
+			// Western — Northwest
+			{ tid: 20, cid: 1, did: 4, abbrev: "DEN" },
+			{ tid: 21, cid: 1, did: 4, abbrev: "MIN" },
+			{ tid: 22, cid: 1, did: 4, abbrev: "OKC" },
+			{ tid: 23, cid: 1, did: 4, abbrev: "POR" },
+			{ tid: 24, cid: 1, did: 4, abbrev: "UTA" },
+			// Western — Pacific
+			{ tid: 25, cid: 1, did: 5, abbrev: "SF" },
+			{ tid: 26, cid: 1, did: 5, abbrev: "LAE" },
+			{ tid: 27, cid: 1, did: 5, abbrev: "LA" },
+			{ tid: 28, cid: 1, did: 5, abbrev: "PHO" },
+			{ tid: 29, cid: 1, did: 5, abbrev: "SAC" },
 		]);
 	} else if (isSport("hockey")) {
 		teams = getTeamInfos([
