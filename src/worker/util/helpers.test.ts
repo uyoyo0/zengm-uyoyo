@@ -23,8 +23,8 @@ beforeAll(() => {
 // Relies on g.*Cache being populated
 describe("getAbbrev", () => {
 	test("return abbrev when given valid team ID", () => {
-		assert.strictEqual(helpers.getAbbrev(6), "DAL");
-		assert.strictEqual(helpers.getAbbrev("6"), "DAL");
+		assert.strictEqual(helpers.getAbbrev(6), "CLE");
+		assert.strictEqual(helpers.getAbbrev("6"), "CLE");
 	});
 	test('return "FA" for free agents', () => {
 		assert.strictEqual(helpers.getAbbrev(PLAYER.FREE_AGENT), "FA");
@@ -46,7 +46,7 @@ test("roundContract", () => {
 	assert.strictEqual(helpers.roundContract(123456789), 123456800);
 	g.setWithoutSavingToDB("minContract", 100000);
 	assert.strictEqual(helpers.roundContract(123456789), 123457000);
-	assert.strictEqual(helpers.getAbbrev("6"), "DAL");
+	assert.strictEqual(helpers.getAbbrev("6"), "CLE");
 });
 
 test("stripBbcode", () => {

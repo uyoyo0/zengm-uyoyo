@@ -23,17 +23,17 @@ beforeAll(() => {
 describe("validateAbbrev", () => {
 	test("return team ID and abbrev when given valid abbrev", () => {
 		const out = validateAbbrev("DAL");
-		assert.strictEqual(out[0], 6);
+		assert.strictEqual(out[0], 15);
 		assert.strictEqual(out[1], "DAL");
 	});
 
 	test("return user team ID and abbrev on invalid input", () => {
 		let out = validateAbbrev("fuck");
 		assert.strictEqual(out[0], 4);
-		assert.strictEqual(out[1], "CIN");
+		assert.strictEqual(out[1], "TOR");
 		out = validateAbbrev();
 		assert.strictEqual(out[0], 4);
-		assert.strictEqual(out[1], "CIN");
+		assert.strictEqual(out[1], "TOR");
 	});
 });
 describe("validateSeason", () => {
