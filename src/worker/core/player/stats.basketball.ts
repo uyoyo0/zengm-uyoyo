@@ -16,6 +16,12 @@ const stats = {
 		"ortg",
 		"pm100",
 		"onOff100",
+		"ortgOn",
+		"ortgOff",
+		"drtgOn",
+		"drtgOff",
+		"tovpOn",
+		"tovpOff",
 		"dws",
 		"ows",
 		"obpm",
@@ -50,6 +56,10 @@ const stats = {
 		"pf",
 		"pts",
 		"clutchPts", // Points scored in late-game, close-margin situations
+		"onOPts", // Team points scored while this player was on court (for on/off)
+		"onOTov", // Team turnovers while this player was on court (for on/off)
+		"onOFga", // Team FGA while this player was on court (for on/off TOV%)
+		"onOFta", // Team FTA while this player was on court (for on/off TOV%)
 		"dd",
 		"td",
 		"qd",

@@ -3159,6 +3159,12 @@ class GameSim extends GameSimBase {
 						for (let j = 0; j < this.numPlayersOnCourt; j++) {
 							const p2 = this.playersOnCourt[i][j]!;
 							p2.stat.pm += i === t ? amt : -amt;
+
+							// On-court team points (offense), for on/off splits. Kept
+							// next to pm so onDPts = onOPts - pm holds exactly.
+							if (i === t) {
+								p2.stat.onOPts += amt;
+							}
 						}
 					}
 
@@ -3168,6 +3174,24 @@ class GameSim extends GameSimBase {
 							this.team[this.o].stat.pts >= this.elamTarget)
 					) {
 						this.elamDone = true;
+					}
+				}
+
+				// On-court offensive team stats for turnover% on/off splits:
+				// turnovers plus the shot volume (fga, fta) that forms the standard
+				// TOV% denominator (fga + 0.44*fta + tov), so on/off reconciles with
+				// the team's overall TOV%.
+				const onOKey =
+					s === "tov"
+						? "onOTov"
+						: s === "fga"
+							? "onOFga"
+							: s === "fta"
+								? "onOFta"
+								: undefined;
+				if (onOKey !== undefined) {
+					for (let j = 0; j < this.numPlayersOnCourt; j++) {
+						this.playersOnCourt[t][j]!.stat[onOKey] += amt;
 					}
 				}
 			}

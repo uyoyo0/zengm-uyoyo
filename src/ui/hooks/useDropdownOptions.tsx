@@ -74,6 +74,7 @@ const dropdownValues: Record<string, string | ResponsiveOption[]> = {
 	totals: "Totals",
 	shotLocations: "Shot Locations and Feats",
 	advanced: "Advanced",
+	onOff: "On/Off",
 	gameHighs: "Game Highs",
 	passing: "Passing",
 	rushing: "Rushing",
@@ -331,7 +332,7 @@ const useDropdownOptions = (
 				"per36",
 				"totals",
 				...(field === "statTypesAdv"
-					? ["shotLocations", "advanced", "gameHighs"]
+					? ["shotLocations", "advanced", "onOff", "gameHighs"]
 					: []),
 			],
 			football: [

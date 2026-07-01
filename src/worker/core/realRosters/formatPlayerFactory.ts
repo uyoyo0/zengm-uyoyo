@@ -16,6 +16,7 @@ import setDraftProspectRatingsBasedOnDraftPosition from "./setDraftProspectRatin
 import { getEWA } from "../../util/advStats.basketball.ts";
 import { averageSalary } from "./averageSalary.ts";
 import { helpers } from "../../util/index.ts";
+import deriveTendencies from "./deriveTendencies.basketball.ts";
 
 const MINUTES_PER_GAME = 48;
 
@@ -52,8 +53,21 @@ const formatPlayerFactory = async (
 	let pid = initialPid;
 
 	let basketballStats: BasketballStats | undefined;
+	// Index career stats by slug once, so per-player tendency derivation (and any
+	// other lookups) are O(1) rather than scanning the full stats array each time.
+	let statsBySlug: Map<string, BasketballStats["stats"]> | undefined;
 	if (options.type === "real" && options.realStats !== "none") {
 		basketballStats = await loadStatsBasketball();
+
+		statsBySlug = new Map();
+		for (const row of basketballStats.stats) {
+			const existing = statsBySlug.get(row.slug);
+			if (existing) {
+				existing.push(row);
+			} else {
+				statsBySlug.set(row.slug, [row]);
+			}
+		}
 	}
 
 	const tidCache: Record<string, number | undefined> = {};
@@ -354,6 +368,17 @@ const formatPlayerFactory = async (
 				const age = currentRatings.season! - bornYear;
 				setDraftProspectRatingsBasedOnDraftPosition(currentRatings, age, bio);
 			}
+		}
+
+		// Behavioral tendencies (usage/three/atRim/post/pass/clutch) for the sim.
+		// Derived from the player's real career stats when available (so shooters
+		// shoot threes, bigs post up, etc.), otherwise from their skill ratings.
+		// Applied to every ratings row as a career aggregate, since the sim reads
+		// tendencies off the active ratings row.
+		const careerStats = statsBySlug?.get(slug) ?? [];
+		const tendencies = deriveTendencies(careerStats, processedRatings.at(-1)!);
+		for (const row of processedRatings) {
+			Object.assign(row, tendencies);
 		}
 
 		const name = legends ? `${bio.name} ${ratings.season}` : bio.name;

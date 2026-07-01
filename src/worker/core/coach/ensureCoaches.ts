@@ -3,6 +3,7 @@ import { g } from "../../util/index.ts";
 import { PLAYER, DEFAULT_COACHING } from "../../../common/constants.ts";
 import generate from "./generate.ts";
 import updateTeamCoaching from "./updateTeamCoaching.ts";
+import { rosterOptimalStyle } from "./style.ts";
 import type { TeamCoaching } from "../../../common/types.ts";
 
 const FREE_AGENT_POOL_MIN = 12;
@@ -24,6 +25,13 @@ const ensureCoaches = async () => {
 
 	const tidsWithCoach = new Set(coaches.map((c) => c.tid));
 
+	// Initial seeding of a brand-new league (no coaches exist yet): give each team
+	// a coach whose philosophy fits its roster, so real/legends/cross-era teams get
+	// historically appropriate coaches (a shooting team gets a 3PT coach, a big
+	// team gets a paint-protecting coach, etc.) instead of random ones. Mid-league
+	// replacements and the free-agent pool stay random, preserving coach variety.
+	const initialSeed = coaches.length === 0;
+
 	for (const t of teams) {
 		if (t.disabled || tidsWithCoach.has(t.tid)) {
 			continue;
@@ -36,6 +44,12 @@ const ensureCoaches = async () => {
 		// coaching dials, make them this coach's philosophy.
 		if (!isNeutral(t.coaching)) {
 			coach.philosophy = { ...t.coaching! };
+		} else if (initialSeed) {
+			const players = await idb.cache.players.indexGetAll(
+				"playersByTid",
+				t.tid,
+			);
+			coach.philosophy = rosterOptimalStyle(players);
 		}
 
 		await idb.cache.coaches.add(coach);

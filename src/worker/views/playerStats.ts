@@ -30,6 +30,8 @@ const updatePlayers = async (
 		if (isSport("basketball")) {
 			if (inputs.statType === "advanced") {
 				statsTable = PLAYER_STATS_TABLES.advanced;
+			} else if (inputs.statType === "onOff") {
+				statsTable = PLAYER_STATS_TABLES.onOff;
 			} else if (inputs.statType === "shotLocations") {
 				statsTable = PLAYER_STATS_TABLES.shotLocations;
 			} else if (inputs.statType === "gameHighs") {
