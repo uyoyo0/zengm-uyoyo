@@ -4,7 +4,7 @@ import type {
 	PlayerRatings,
 	RatingKey,
 } from "../../../common/types.basketball.ts";
-import { coachingEffect } from "../../../common/budgetLevels.ts";
+import { coachDevEffect } from "../../../common/coachingConstants.ts";
 import { uniform, realGauss } from "../../../common/random.ts";
 import { TENDENCIES } from "../../../common/constants.basketball.ts";
 
@@ -201,7 +201,8 @@ const calcBaseChange = (age: number, coachingLevel: number): number => {
 		val += helpers.bound(realGauss(0, 3), -2, 4);
 	}
 
-	val *= 1 + (val > 0 ? 1 : -1) * coachingEffect(coachingLevel);
+	// coachingLevel here is the coach's development rating (0-100, neutral 50).
+	val *= 1 + (val > 0 ? 1 : -1) * coachDevEffect(coachingLevel);
 
 	return val;
 };

@@ -1,5 +1,6 @@
 import { g, helpers } from "../../util/index.ts";
 import { PHASE, STARTING_NUM_TIMEOUTS } from "../../../common/constants.ts";
+import { COACHING } from "../../../common/coachingConstants.ts";
 import jumpBallWinnerStartsThisPeriodWithPossession from "./jumpBallWinnerStartsThisPeriodWithPossession.ts";
 import getInjuryRate from "./getInjuryRate.ts";
 import type {
@@ -27,23 +28,9 @@ import { choice, truncGauss, uniform } from "../../../common/random.ts";
 
 const SHOT_CLOCK = 24;
 
-// Coaching style dials are signed levels in [-1, 1] (0 = neutral). These constants
-// translate a level into a multiplier/delta applied in the sim. Tuned first-pass.
-const COACHING_3PT_TENDENCY = 0.4; // max +/-40% to 3PT tendency
-const COACHING_PACE = 0.12; // max +/-12% to pace
-const COACHING_PACE_FATIGUE = 0.15; // faster tempo is more tiring per minute
-const COACHING_CRASH_GLASS = 0.4; // max +/-40% to orbFactor
-const COACHING_TRANSITION_BONUS = 0.06; // crashing concedes easier transition shots
-
 // A shot counts as a fast break if it goes up this quickly after a live-ball
 // change of possession (steal or defensive rebound).
 const FAST_BREAK_SECONDS = 8;
-const COACHING_PAINT_PUSH_3S = 0.25; // packing the paint nudges opponents toward 3s
-const COACHING_PAINT_INTERIOR_DELTA = 0.05; // probMake delta on interior shots vs paint D
-const COACHING_PAINT_THREE_DELTA = 0.04; // probMake delta on 3s vs paint D
-const COACHING_AGGRESSION_TOV = 0.4; // steals/blocks/turnovers forced
-const COACHING_AGGRESSION_FOUL = 0.3; // tradeoff: more fouls when gambling
-
 // Per-player tendencies (0-100, 50 = neutral). Converted to a multiplier with
 // these max strengths (at 0 or 100). Behavioral bias on top of skill.
 const TENDENCY_USAGE = 0.5; // who looks for their own shot
@@ -78,10 +65,6 @@ const lineupCounts = (players: PlayerGameSim[]) => {
 
 // Lineup fit (coach-managed): per-player sub-value nudge for spacing / avoiding
 // redundant ball-dominant players, scaled by coach tactics. Clamped tie-breaker.
-const LINEUP_SPACE_W = 0.04;
-const LINEUP_BALLDOM_W = 0.04;
-const LINEUP_FIT_MIN = 0.9;
-const LINEUP_FIT_MAX = 1.1;
 
 // Clutch: probMake swing (in late-game close situations) at clutch 0 vs 100.
 const CLUTCH_MAX = 0.06;
@@ -957,7 +940,7 @@ class GameSim extends GameSimBase {
 		// Lasts a single possession.
 		this.currentTransitionBonus =
 			this.transitionTeam === this.o
-				? COACHING_TRANSITION_BONUS * this.transitionAmount
+				? COACHING.TRANSITION_BONUS * this.transitionAmount
 				: 0;
 		this.transitionTeam = undefined;
 
@@ -1192,15 +1175,16 @@ class GameSim extends GameSimBase {
 						if (!this.allStarGame && (spacingNeed > 0 || ballDomExcess > 0)) {
 							let fitMult = 1;
 							if (spacingNeed > 0 && isSpacer(p)) {
-								fitMult += tacticsScale * LINEUP_SPACE_W * spacingNeed;
+								fitMult += tacticsScale * COACHING.LINEUP_SPACE_W * spacingNeed;
 							}
 							if (ballDomExcess > 0 && isBallDominant(p)) {
-								fitMult -= tacticsScale * LINEUP_BALLDOM_W * ballDomExcess;
+								fitMult -=
+									tacticsScale * COACHING.LINEUP_BALLDOM_W * ballDomExcess;
 							}
 							ovrs[p.id]! *= helpers.bound(
 								fitMult,
-								LINEUP_FIT_MIN,
-								LINEUP_FIT_MAX,
+								COACHING.LINEUP_FIT_MIN,
+								COACHING.LINEUP_FIT_MAX,
 							);
 						}
 					}
@@ -1599,7 +1583,7 @@ class GameSim extends GameSimBase {
 		// taxing per minute, so the offense's pace dial scales how quickly players
 		// on both teams tire this possession. Minutes played are unchanged.
 		const paceFatigue =
-			1 + COACHING_PACE_FATIGUE * (this.team[offenseT]?.coaching?.pace ?? 0);
+			1 + COACHING.PACE_FATIGUE * (this.team[offenseT]?.coaching?.pace ?? 0);
 
 		for (const t of teamNums) {
 			// Update minutes (overall, court, and bench)
@@ -1711,7 +1695,7 @@ class GameSim extends GameSimBase {
 		// The offense's coaching pace dial speeds up (faster -> shorter possessions) or slows down play.
 		const effectivePaceFactor =
 			this.paceFactor *
-			(1 + COACHING_PACE * (this.team[this.o]?.coaching?.pace ?? 0));
+			(1 + COACHING.PACE * (this.team[this.o]?.coaching?.pace ?? 0));
 		const secondsAdjusted =
 			this.t - seconds / effectivePaceFactor > 40
 				? seconds / effectivePaceFactor
@@ -1885,7 +1869,7 @@ class GameSim extends GameSimBase {
 			Math.random() <
 				0.08 *
 					g.get("foulRateFactor") *
-					this.defensiveAggressionFactor(COACHING_AGGRESSION_FOUL) ||
+					this.defensiveAggressionFactor(COACHING.AGGRESSION_FOUL) ||
 			clockFactor === "intentionalFoul"
 		) {
 			let dt;
@@ -1967,7 +1951,7 @@ class GameSim extends GameSimBase {
 	probTov() {
 		return boundProb(
 			(g.get("turnoverFactor") *
-				this.defensiveAggressionFactor(COACHING_AGGRESSION_TOV) *
+				this.defensiveAggressionFactor(COACHING.AGGRESSION_TOV) *
 				(0.14 * this.team[this.d].compositeRating.defense)) /
 				(0.5 *
 					(this.team[this.o].compositeRating.dribbling +
@@ -2019,7 +2003,7 @@ class GameSim extends GameSimBase {
 	probStl() {
 		return boundProb(
 			g.get("stealFactor") *
-				this.defensiveAggressionFactor(COACHING_AGGRESSION_TOV) *
+				this.defensiveAggressionFactor(COACHING.AGGRESSION_TOV) *
 				((0.45 * this.team[this.d].compositeRating.defensePerimeter) /
 					(0.5 *
 						(this.team[this.o].compositeRating.dribbling +
@@ -2151,10 +2135,10 @@ class GameSim extends GameSimBase {
 					shootingThreePointerScaled2 *
 					g.get("threePointTendencyFactor") *
 					(1 +
-						COACHING_3PT_TENDENCY *
+						COACHING.THREE_PT_TENDENCY *
 							this.team[this.o].coaching.threePointTendency) *
 					(1 +
-						COACHING_PAINT_PUSH_3S * this.team[this.d].coaching.paintDefense) *
+						COACHING.PAINT_PUSH_3S * this.team[this.d].coaching.paintDefense) *
 					tendencyFactor(p.tendencies.three, TENDENCY_THREE)
 		) {
 			// Three pointer
@@ -2225,7 +2209,7 @@ class GameSim extends GameSimBase {
 				0.65 *
 				(p.compositeRating.drawingFouls / 0.5) ** 2 *
 				g.get("foulRateFactor") *
-				this.defensiveAggressionFactor(COACHING_AGGRESSION_FOUL);
+				this.defensiveAggressionFactor(COACHING.AGGRESSION_FOUL);
 
 			if (this.allStarGame) {
 				foulFactor *= 0.4;
@@ -2246,9 +2230,9 @@ class GameSim extends GameSimBase {
 			const paintDefense = this.team[this.d].coaching.paintDefense;
 			if (paintDefense !== 0) {
 				if (type === "threePointer") {
-					probMake += COACHING_PAINT_THREE_DELTA * paintDefense;
+					probMake += COACHING.PAINT_THREE_DELTA * paintDefense;
 				} else {
-					probMake -= COACHING_PAINT_INTERIOR_DELTA * paintDefense;
+					probMake -= COACHING.PAINT_INTERIOR_DELTA * paintDefense;
 				}
 			}
 
@@ -2517,7 +2501,7 @@ class GameSim extends GameSimBase {
 	probBlk() {
 		return (
 			g.get("blockFactor") *
-			this.defensiveAggressionFactor(COACHING_AGGRESSION_TOV) *
+			this.defensiveAggressionFactor(COACHING.AGGRESSION_TOV) *
 			0.2 *
 			this.team[this.d].compositeRating.blocking ** 2
 		);
@@ -3074,7 +3058,7 @@ class GameSim extends GameSimBase {
 		const orbFactor =
 			g.get("orbFactor") *
 			(1 +
-				COACHING_CRASH_GLASS * this.team[this.o].coaching.crashOffensiveGlass);
+				COACHING.CRASH_GLASS * this.team[this.o].coaching.crashOffensiveGlass);
 		if (
 			(0.75 * (2 + this.team[this.d].compositeRating.rebounding)) /
 				(orbFactor * (2 + this.team[this.o].compositeRating.rebounding)) >

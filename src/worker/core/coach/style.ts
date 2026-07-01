@@ -1,4 +1,5 @@
 import { DEFAULT_COACHING } from "../../../common/constants.ts";
+import { COACHING } from "../../../common/coachingConstants.ts";
 import { helpers } from "../../util/index.ts";
 import { last } from "../../../common/utils.ts";
 import type { Coach, Player, TeamCoaching } from "../../../common/types.ts";
@@ -79,10 +80,6 @@ export const opponentProfile = (players: Player[]): OpponentProfile => {
 	};
 };
 
-// Maximum weight (at tactics = 100) given to re-optimizing the style for the
-// players actually available tonight.
-const AVAILABILITY_MAX = 0.4;
-
 // Adapt the style to who's actually on the floor (e.g. when starters are injured),
 // scaled by tactics. A high-tactics coach shifts toward what the healthy roster
 // does well; a low-tactics coach plays the same regardless of availability.
@@ -91,7 +88,7 @@ export const availabilityAdjust = (
 	tactics: number,
 	availablePlayers: Player[],
 ): TeamCoaching => {
-	const w = helpers.bound(tactics / 100, 0, 1) * AVAILABILITY_MAX;
+	const w = helpers.bound(tactics / 100, 0, 1) * COACHING.AVAILABILITY_MAX;
 	if (w === 0 || availablePlayers.length === 0) {
 		return style;
 	}
@@ -110,7 +107,7 @@ export const matchupAdjust = (
 	tactics: number,
 	opp: OpponentProfile,
 ): TeamCoaching => {
-	const scale = helpers.bound(tactics / 100, 0, 1) * 0.5;
+	const scale = helpers.bound(tactics / 100, 0, 1) * COACHING.MATCHUP_MAX;
 	return {
 		...style,
 		// Pack the paint vs. interior teams; guard the arc vs. shooting teams.

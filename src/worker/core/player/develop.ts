@@ -15,7 +15,7 @@ import type {
 import genWeight from "./genWeight.ts";
 import potEstimator from "./potEstimator.ts";
 import { TOO_MANY_TEAMS_TOO_SLOW } from "../season/getInitialNumGamesConfDivSettings.ts";
-import { DEFAULT_LEVEL } from "../../../common/budgetLevels.ts";
+import { getNeutralCoachingLevel } from "../../../common/coachingConstants.ts";
 import { bySport, isSport } from "../../../common/sportFunctions.ts";
 import { last } from "../../../common/utils.ts";
 
@@ -77,7 +77,13 @@ export const monteCarloPot = async ({
 		let maxOvr = pos ? ratings.ovrs[pos] : ratings.ovr;
 
 		for (let ageTemp = age + 1; ageTemp < 30; ageTemp++) {
-			await developSeason(copiedRatings, ageTemp, srID, DEFAULT_LEVEL, true);
+			await developSeason(
+				copiedRatings,
+				ageTemp,
+				srID,
+				getNeutralCoachingLevel(),
+				true,
+			);
 
 			const currentOvr = ovr(copiedRatings, pos);
 
@@ -123,7 +129,7 @@ const develop = async (
 	},
 	years: number = 1,
 	newPlayer: boolean = false,
-	coachingLevel: number = DEFAULT_LEVEL,
+	coachingLevel: number = getNeutralCoachingLevel(),
 	skipPot: boolean = false, // Only for making testing or core/debug faster
 ) => {
 	const ratings = last(p.ratings);
