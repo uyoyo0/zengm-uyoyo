@@ -291,6 +291,22 @@ export const PLAYER_STATS_TABLES = {
 			"vorp",
 		],
 	},
+	onOff: {
+		name: "On/Off",
+		stats: [
+			"gp",
+			"min",
+			"ortgOn",
+			"ortgOff",
+			"drtgOn",
+			"drtgOff",
+			"netrtgOn",
+			"netrtgOff",
+			"tovpOn",
+			"tovpOff",
+			"onOff100",
+		],
+	},
 	gameHighs: {
 		name: "Game Highs",
 		stats: [

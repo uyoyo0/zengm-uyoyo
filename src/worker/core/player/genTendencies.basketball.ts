@@ -15,14 +15,11 @@ type Skills = {
 
 const r = (skills: Skills, key: keyof Skills) => skills[key] ?? 50;
 
-// Centered on 50, pulled toward the relevant skill(s), plus noise.
-const dial = (base: number, noise = 9) =>
-	helpers.bound(Math.round(50 + (base - 50) + realGauss(0, noise)), 0, 100);
-
-// Behavioral tendencies correlated to a player's skills (a great shooter tends to
-// shoot more 3s; a big tends to post up), with noise so they're not identical to
-// skill. Reused by player generation and the league migration.
-const genTendencies = (skills: Skills) => {
+// Raw, deterministic tendency targets (centered on 50, pulled toward the relevant
+// skill(s)), before any noise or rounding. Shared by random player generation
+// (which adds noise) and real-player derivation (which uses these as the fallback
+// when career stats aren't available).
+export const skillTendencyBases = (skills: Skills) => {
 	const tp = r(skills, "tp");
 	const dnk = r(skills, "dnk");
 	const spd = r(skills, "spd");
@@ -36,13 +33,33 @@ const genTendencies = (skills: Skills) => {
 	const scoring = (ins + dnk + fg + tp + oiq) / 5;
 
 	return {
-		tendencyUsage: dial(50 + (scoring - 50) * 0.5),
-		tendencyThree: dial(50 + (tp - 50) * 0.7 + (oiq - 50) * 0.1),
-		tendencyAtRim: dial(50 + ((dnk + spd) / 2 - 50) * 0.6),
-		tendencyPost: dial(50 + ((ins + hgt + stre) / 3 - 50) * 0.6),
-		tendencyPass: dial(50 + ((pss + oiq) / 2 - 50) * 0.6),
+		tendencyUsage: 50 + (scoring - 50) * 0.5,
+		tendencyThree: 50 + (tp - 50) * 0.7 + (oiq - 50) * 0.1,
+		tendencyAtRim: 50 + ((dnk + spd) / 2 - 50) * 0.6,
+		tendencyPost: 50 + ((ins + hgt + stre) / 3 - 50) * 0.6,
+		tendencyPass: 50 + ((pss + oiq) / 2 - 50) * 0.6,
 		// Clutch is mostly independent of skill (a slight lean on composure/IQ).
-		tendencyClutch: dial(50 + (oiq - 50) * 0.1, 14),
+		tendencyClutch: 50 + (oiq - 50) * 0.1,
+	};
+};
+
+// Centered on 50, pulled toward the relevant skill(s), plus noise.
+const dial = (base: number, noise = 9) =>
+	helpers.bound(Math.round(base + realGauss(0, noise)), 0, 100);
+
+// Behavioral tendencies correlated to a player's skills (a great shooter tends to
+// shoot more 3s; a big tends to post up), with noise so they're not identical to
+// skill. Reused by player generation and the league migration.
+const genTendencies = (skills: Skills) => {
+	const b = skillTendencyBases(skills);
+
+	return {
+		tendencyUsage: dial(b.tendencyUsage),
+		tendencyThree: dial(b.tendencyThree),
+		tendencyAtRim: dial(b.tendencyAtRim),
+		tendencyPost: dial(b.tendencyPost),
+		tendencyPass: dial(b.tendencyPass),
+		tendencyClutch: dial(b.tendencyClutch, 14),
 	};
 };
 

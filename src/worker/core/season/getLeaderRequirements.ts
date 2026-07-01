@@ -340,6 +340,26 @@ const getLeaderRequirements = () => {
 				...basketballAdvancedStats,
 				sortAscending: true,
 			},
+			ortgOn: basketballAdvancedStats,
+			ortgOff: basketballAdvancedStats,
+			drtgOn: {
+				...basketballAdvancedStats,
+				sortAscending: true,
+			},
+			drtgOff: {
+				...basketballAdvancedStats,
+				sortAscending: true,
+			},
+			netrtgOn: basketballAdvancedStats,
+			netrtgOff: basketballAdvancedStats,
+			tovpOn: {
+				...basketballAdvancedStats,
+				sortAscending: true,
+			},
+			tovpOff: {
+				...basketballAdvancedStats,
+				sortAscending: true,
+			},
 			minMax: {},
 			fgMax: {},
 			fgaMax: {},

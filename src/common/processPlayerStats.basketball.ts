@@ -32,6 +32,12 @@ const straightThrough = new Set([
 	"fxf",
 	"pm100",
 	"onOff100",
+	"ortgOn",
+	"ortgOff",
+	"drtgOn",
+	"drtgOff",
+	"tovpOn",
+	"tovpOff",
 ]);
 
 const processStats = (
@@ -114,6 +120,12 @@ const processStats = (
 			scale = false;
 		} else if (stat === "bpm") {
 			row.bpm = ps.dbpm + ps.obpm;
+			scale = false;
+		} else if (stat === "netrtgOn") {
+			row.netrtgOn = (ps.ortgOn ?? 0) - (ps.drtgOn ?? 0);
+			scale = false;
+		} else if (stat === "netrtgOff") {
+			row.netrtgOff = (ps.ortgOff ?? 0) - (ps.drtgOff ?? 0);
 			scale = false;
 		} else if (stat === "trb") {
 			// In historical stats, before orb/drb were tracked separately, stats rows include trb. Even older seasons, trb was not even tracked

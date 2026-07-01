@@ -77,6 +77,96 @@ const calculateOnOff = (players: any[], teamsByTid: Record<string, Team>) => {
 	};
 };
 
+// On/off split ratings. On-court possessions are estimated the same way as the
+// individual possession estimates used elsewhere (player's share of team
+// possessions, proportional to minutes); off-court = team total minus on-court.
+// Since on-court pm = onOPts - onDPts, defensive points-against on court is
+// exactly onOPts - pm (no estimation). DRtg uses on-court offensive possessions
+// as a proxy for opponent possessions (they're ~equal per possession pairing).
+// TOV% uses the standard denominator (fga + 0.44*fta + tov) from exactly-counted
+// on-court shot volume, so it reconciles with the team's overall TOV%.
+const calculateOnOffRatings = (
+	players: any[],
+	teamsByTid: Record<string, Team>,
+) => {
+	const numPlayersOnCourt = g.get("numPlayersOnCourt");
+
+	// Minimum possessions on either side of the split before we report a rating,
+	// to suppress tiny-sample noise (e.g. a star who barely sits).
+	const MIN_POSS = 10;
+
+	const ortgOn: number[] = [];
+	const ortgOff: number[] = [];
+	const drtgOn: number[] = [];
+	const drtgOff: number[] = [];
+	const tovpOn: number[] = [];
+	const tovpOff: number[] = [];
+
+	// Require some tracked shot volume so seasons simmed before on-court fga/fta
+	// were recorded don't report a misleading 100% (tov / (0 + 0 + tov)).
+	const tovp = (tov: number, fga: number, fta: number) =>
+		fga > 0 ? (100 * tov) / (fga + 0.44 * fta + tov) : 0;
+
+	for (const [i, p] of players.entries()) {
+		const ps = p.stats;
+		const t = teamsByTid[p.tid];
+
+		let on = { ortg: 0, drtg: 0, tovp: 0 };
+		let off = { ortg: 0, drtg: 0, tovp: 0 };
+
+		if (t !== undefined) {
+			const tminAvg = t.stats.min / numPlayersOnCourt;
+			const onPoss = tminAvg > 0 ? (ps.min / tminAvg) * t.stats.poss : 0;
+			const offPoss = t.stats.poss - onPoss;
+
+			const onOPts = ps.onOPts ?? 0;
+			const offOPts = t.stats.pts - onOPts;
+			const onDPts = onOPts - ps.pm;
+			const offDPts = t.stats.oppPts - onDPts;
+			const onOTov = ps.onOTov ?? 0;
+			const offOTov = t.stats.tov - onOTov;
+			const onOFga = ps.onOFga ?? 0;
+			const offOFga = t.stats.fga - onOFga;
+			const onOFta = ps.onOFta ?? 0;
+			const offOFta = t.stats.fta - onOFta;
+
+			if (onPoss >= MIN_POSS) {
+				on = {
+					ortg: (100 * onOPts) / onPoss,
+					drtg: (100 * onDPts) / onPoss,
+					tovp: tovp(onOTov, onOFga, onOFta),
+				};
+			}
+			if (offPoss >= MIN_POSS) {
+				off = {
+					ortg: (100 * offOPts) / offPoss,
+					drtg: (100 * offDPts) / offPoss,
+					tovp: tovp(offOTov, offOFga, offOFta),
+				};
+			}
+		}
+
+		const clean = (x: number) =>
+			Number.isNaN(x) || !Number.isFinite(x) ? 0 : x;
+
+		ortgOn[i] = clean(on.ortg);
+		ortgOff[i] = clean(off.ortg);
+		drtgOn[i] = clean(on.drtg);
+		drtgOff[i] = clean(off.drtg);
+		tovpOn[i] = clean(on.tovp);
+		tovpOff[i] = clean(off.tovp);
+	}
+
+	return {
+		ortgOn,
+		ortgOff,
+		drtgOn,
+		drtgOff,
+		tovpOn,
+		tovpOff,
+	};
+};
+
 const prls = {
 	PG: 11,
 	G: 10.75,
@@ -791,6 +881,10 @@ const advStats = async () => {
 				"drb",
 				"pts",
 				"pm",
+				"onOPts",
+				"onOTov",
+				"onOFga",
+				"onOFta",
 
 				// For statsRowIsCurrenet
 				"tid",
@@ -911,6 +1005,7 @@ const advStats = async () => {
 
 	const updatedStats = {
 		...calculateOnOff(players, teamsByTid),
+		...calculateOnOffRatings(players, teamsByTid),
 		...calculatePER(players, teamsByTid, league),
 		...calculatePercentages(players, teamsByTid),
 		...calculateRatings(players, teamsByTid, league),

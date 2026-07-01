@@ -312,3 +312,103 @@ test("league realism: neutral aggregates are in believable bands", async () => {
 		`points out of band: ${ptsPerTeamGame}`,
 	);
 });
+
+// On/off accumulators are recorded for every on-court player on each scoring /
+// turnover event, so they satisfy exact identities vs the team box score:
+//   sum(onOPts) = N * teamPts;  sum(onOTov) = N * teamTov;
+//   sum(pm)     = N * (teamPts - oppPts);  onDPts = onOPts - pm  => sum = N*oppPts
+// where N = numPlayersOnCourt. These prove the on-court points-for/against split
+// (which drives ORtg/DRtg/TOV% on/off) is recorded correctly.
+test("on/off: on-court accumulators reconcile exactly with team totals", async () => {
+	resetG();
+	g.setWithoutSavingToDB("season", 2016);
+	const N = g.get("numPlayersOnCourt");
+
+	const base = range(PER_TEAM).map((i) => {
+		const p: any = player.generate(0, 25, 2010, true, DEFAULT_LEVEL);
+		p.rosterOrder = i;
+		return p;
+	});
+	const players0 = base.map((p) => clonePlayer(p, 0));
+	const players1 = base.map((p) => clonePlayer(p, 1));
+
+	const teamsDefault = helpers.getTeamsDefault().slice(0, 2);
+	await resetCache({
+		players: [...players0, ...players1],
+		teams: teamsDefault.map(team.generate),
+		teamSeasons: teamsDefault.map((t) => team.genSeasonRow(t)),
+		teamStats: teamsDefault.map((t) => team.genStatsRow(t.tid)),
+	});
+	for (const p of await idb.cache.players.getAll()) {
+		await player.updateValues(p);
+		await idb.cache.players.put(p);
+	}
+
+	for (let i = 0; i < 5; i++) {
+		const teams = await loadTeams([0, 1], {});
+		const res: any = new GameSim({
+			gid: 0,
+			teams: [teams[0]!, teams[1]!] as any,
+			baseInjuryRate: 0,
+			doPlayByPlay: false,
+			homeCourtFactor: 1,
+			allStarGame: false,
+			neutralSite: true,
+		}).run();
+
+		for (const t of [0, 1] as const) {
+			const opp = t === 0 ? 1 : 0;
+			const teamPts = res.team[t].stat.pts;
+			const oppPts = res.team[opp].stat.pts;
+			const teamTov = res.team[t].stat.tov;
+			const teamFga = res.team[t].stat.fga;
+			const teamFta = res.team[t].stat.fta;
+
+			let sumOnOPts = 0;
+			let sumOnOTov = 0;
+			let sumOnOFga = 0;
+			let sumOnOFta = 0;
+			let sumPm = 0;
+			for (const p of res.team[t].player) {
+				sumOnOPts += p.stat.onOPts ?? 0;
+				sumOnOTov += p.stat.onOTov ?? 0;
+				sumOnOFga += p.stat.onOFga ?? 0;
+				sumOnOFta += p.stat.onOFta ?? 0;
+				sumPm += p.stat.pm ?? 0;
+			}
+			const sumOnDPts = sumOnOPts - sumPm;
+
+			assert.equal(sumOnOPts, N * teamPts, "sum(onOPts) = N*teamPts");
+			assert.equal(sumOnOTov, N * teamTov, "sum(onOTov) = N*teamTov");
+			assert.equal(sumOnOFga, N * teamFga, "sum(onOFga) = N*teamFga");
+			assert.equal(sumOnOFta, N * teamFta, "sum(onOFta) = N*teamFta");
+			assert.equal(sumPm, N * (teamPts - oppPts), "sum(pm) = N*MOV");
+			assert.equal(sumOnDPts, N * oppPts, "sum(onDPts) = N*oppPts");
+
+			// On/off TOV% is an exact split of team TOV% (same denominator), so the
+			// team value must lie between each player's on-court and off-court TOV%.
+			// This is the property the user expects: team TOV% sits between on/off.
+			const tovp = (tov: number, fga: number, fta: number) =>
+				(100 * tov) / (fga + 0.44 * fta + tov);
+			const teamTovp = tovp(teamTov, teamFga, teamFta);
+			for (const p of res.team[t].player) {
+				const onTov = p.stat.onOTov ?? 0;
+				const onFga = p.stat.onOFga ?? 0;
+				const onFta = p.stat.onOFta ?? 0;
+				const offFga = teamFga - onFga;
+				// Only meaningful when the player has both on- and off-court shot
+				// volume (otherwise one side has no possessions).
+				if (onFga > 0 && offFga > 0) {
+					const onTovp = tovp(onTov, onFga, onFta);
+					const offTovp = tovp(teamTov - onTov, offFga, teamFta - onFta);
+					const lo = Math.min(onTovp, offTovp) - 1e-9;
+					const hi = Math.max(onTovp, offTovp) + 1e-9;
+					assert(
+						teamTovp >= lo && teamTovp <= hi,
+						`team TOV% ${teamTovp} not between on ${onTovp} and off ${offTovp}`,
+					);
+				}
+			}
+		}
+	}
+});
