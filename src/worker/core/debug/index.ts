@@ -9,6 +9,7 @@ import maxRatingDists from "./maxRatingDists.ts";
 import percentageDraftPicksSigned from "./percentageDraftPicksSigned.ts";
 import recomputeAwards from "./recomputeAwards.ts";
 import recomputeHallOfFame from "./recomputeHallOfFame.ts";
+import rederiveTendencies from "./rederiveTendencies.ts";
 import recomputeOvr from "./recomputeOvr.ts";
 import recomputeRealSeasonLeaders from "./recomputeRealSeasonLeaders.ts";
 
@@ -23,6 +24,7 @@ export default {
 	percentageDraftPicksSigned,
 	recomputeAwards,
 	recomputeHallOfFame,
+	rederiveTendencies,
 	recomputeOvr,
 	recomputeRealSeasonLeaders,
 };

@@ -50,7 +50,11 @@ import g, { wrapNewValueIfCurrentlyWrapped } from "../../util/g.ts";
 import type { Settings } from "../../views/settings.ts";
 import { getAutoTicketPriceByTid } from "../game/attendance.ts";
 import addRelatives from "../realRosters/addRelatives.ts";
+import deriveTendencies from "../realRosters/deriveTendencies.basketball.ts";
 import loadDataBasketball from "../realRosters/loadData.basketball.ts";
+import loadStatsBasketball, {
+	type BasketballStats,
+} from "../realRosters/loadStats.basketball.ts";
 import addDraftProspects from "./create/addDraftProspects.ts";
 import createRandomPlayers from "./create/createRandomPlayers.ts";
 import getRealTeamPlayerData from "./create/getRealTeamPlayerData.ts";
@@ -1128,6 +1132,9 @@ const finalizeActivePlayers = async ({
 type CreateStreamProps = {
 	conditions?: Conditions;
 	confs: Conf[];
+	// True for cross-era leagues, whose real players are baked into
+	// teamsFromInput; enables applying settings.realTendencies at creation.
+	crossEra?: boolean;
 	divs: Div[];
 	fromFile: {
 		gameAttributes: Record<string, unknown> | undefined;
@@ -1189,6 +1196,10 @@ const beforeDBStream = async ({
 
 		// realStats is already in getLeagueOptions
 		realStats,
+
+		// realTendencies is already in getLeagueOptions (real leagues) or applied
+		// in afterDBStream (cross-era leagues); it's not a game attribute
+		realTendencies,
 
 		...otherSettings
 	} = settings;
@@ -1360,6 +1371,7 @@ const adjustSeasonPlayer = (p: Partial<PlayerWithoutKey>) => {
 
 const afterDBStream = async ({
 	activeTids,
+	crossEra,
 	extraFromStream,
 	fromFile,
 	hasRookieContracts,
@@ -1369,6 +1381,7 @@ const afterDBStream = async ({
 	noStartingInjuries,
 	randomization,
 	realPlayerPhotos,
+	realTendencies,
 	repeatSeason,
 	scoutingLevel,
 	shuffleRosters,
@@ -1382,9 +1395,10 @@ const afterDBStream = async ({
 	noStartingInjuries: boolean;
 	randomization: Settings["randomization"];
 	realPlayerPhotos: RealPlayerPhotos | undefined;
+	realTendencies: Settings["realTendencies"];
 } & Pick<
 	CreateStreamProps,
-	"fromFile" | "getLeagueOptions" | "lid" | "shuffleRosters"
+	"crossEra" | "fromFile" | "getLeagueOptions" | "lid" | "shuffleRosters"
 > &
 	Pick<
 		Awaited<ReturnType<typeof beforeDBStream>>,
@@ -1479,6 +1493,32 @@ const afterDBStream = async ({
 				teams,
 			});
 
+	// Cross-era rosters were generated (getRandomTeams) before the user picked
+	// the Player Tendencies setting, in the default "historical" (with
+	// variation) mode. If another mode was chosen, re-derive here. Gated on
+	// crossEra so players from imported custom teams are never rewritten.
+	let crossEraTendenciesMode: "historicalExact" | "skill" | undefined;
+	let crossEraStatsBySlug: Map<string, BasketballStats["stats"]> | undefined;
+	if (
+		crossEra &&
+		isSport("basketball") &&
+		(realTendencies === "historicalExact" || realTendencies === "skill")
+	) {
+		crossEraTendenciesMode = realTendencies;
+		if (realTendencies === "historicalExact") {
+			const { stats } = await loadStatsBasketball();
+			crossEraStatsBySlug = new Map();
+			for (const row of stats) {
+				const existing = crossEraStatsBySlug.get(row.slug);
+				if (existing) {
+					existing.push(row);
+				} else {
+					crossEraStatsBySlug.set(row.slug, [row]);
+				}
+			}
+		}
+	}
+
 	// If players are specified for some team on import (from CustomizeTeams), replace the randomly generated players
 	const replaceTids = new Set();
 	const extraActivePlayers: PlayerWithoutKey[] = [];
@@ -1489,6 +1529,18 @@ const afterDBStream = async ({
 			replaceTids.add(t.tid);
 
 			for (const p of t.players) {
+				if (crossEraTendenciesMode && typeof p.srID === "string") {
+					const careerStats = crossEraStatsBySlug?.get(p.srID) ?? [];
+					const tendencies = deriveTendencies(
+						careerStats,
+						p.ratings.at(-1),
+						crossEraTendenciesMode === "skill" ? 9 : 0,
+					);
+					for (const row of p.ratings) {
+						Object.assign(row, tendencies);
+					}
+				}
+
 				delete p.pid;
 				delete p.relatives;
 				delete p.transactions;
@@ -1804,6 +1856,7 @@ const createStream = async (
 	{
 		conditions,
 		confs,
+		crossEra,
 		divs,
 		fromFile,
 		getLeagueOptions,
@@ -1872,6 +1925,7 @@ const createStream = async (
 
 	await afterDBStream({
 		activeTids,
+		crossEra,
 		extraFromStream,
 		fromFile,
 		gameAttributes,
@@ -1881,6 +1935,7 @@ const createStream = async (
 		noStartingInjuries,
 		randomization: settings.randomization,
 		realPlayerPhotos,
+		realTendencies: settings.realTendencies,
 		repeatSeason,
 		scoutingLevel,
 		shuffleRosters,

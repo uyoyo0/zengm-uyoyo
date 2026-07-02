@@ -565,6 +565,7 @@ const createLeague = async (
 		fromFile,
 		startingSeasonFromInput,
 		leagueCreationID,
+		crossEra,
 	}: {
 		name: string;
 		tid: number;
@@ -578,6 +579,9 @@ const createLeague = async (
 		divs: Div[];
 		teamsFromInput: NewLeagueTeam[];
 		settings: NewLeagueSettings;
+		// True for cross-era leagues, whose real players are baked into
+		// teamsFromInput; enables applying settings.realTendencies at creation.
+		crossEra?: boolean;
 		fromFile: {
 			gameAttributes: Record<string, unknown> | undefined;
 			hasRookieContracts: boolean;
@@ -696,6 +700,7 @@ const createLeague = async (
 	await league.createStream(stream, {
 		conditions,
 		confs,
+		crossEra,
 		divs,
 		fromFile,
 		getLeagueOptions,

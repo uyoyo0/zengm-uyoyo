@@ -18,12 +18,16 @@ const statRow = (
 
 test("empty career stats fall back to skill baseline (neutral -> ~50)", () => {
 	const t = deriveTendencies([], neutralSkills);
-	for (const key of Object.keys(t) as (keyof typeof t)[]) {
-		assert(t[key] >= 0 && t[key] <= 100, `${key} out of range: ${t[key]}`);
+	for (const [key, value] of Object.entries(t)) {
+		if (typeof value === "number") {
+			assert(value >= 0 && value <= 100, `${key} out of range: ${value}`);
+		}
 	}
 	assert.equal(t.tendencyThree, 50);
 	assert.equal(t.tendencyUsage, 50);
 	assert.equal(t.tendencyPass, 50);
+	// Skill fallback is not an absolute (stats-derived) shot mix.
+	assert.equal(t.tendencyAbsolute, false);
 });
 
 test("a high-3PA-share career yields high tendencyThree", () => {
@@ -44,6 +48,9 @@ test("a high-3PA-share career yields high tendencyThree", () => {
 		`non-shooter tendencyThree ${nonShooter.tendencyThree}`,
 	);
 	assert(shooter.tendencyThree > nonShooter.tendencyThree);
+	// A real career sample makes the shot mix absolute (era scaling skipped).
+	assert.equal(shooter.tendencyAbsolute, true);
+	assert.equal(nonShooter.tendencyAbsolute, true);
 });
 
 test("usage maps to usage tendency; assist ratio maps to pass tendency", () => {
@@ -121,6 +128,34 @@ test("below-sample careers keep the skill baseline", () => {
 		neutralSkills,
 	);
 	assert.equal(t.tendencyThree, 50);
+	assert.equal(t.tendencyAbsolute, false);
+});
+
+test("noise varies tendencies around the exact value, within clamps", () => {
+	const rows = [statRow({ fga: 1000, tpa: 300, min: 2000 })];
+	const exact = deriveTendencies(rows, neutralSkills);
+
+	let sum = 0;
+	let anyDifferent = false;
+	const N = 300;
+	for (let i = 0; i < N; i++) {
+		const t = deriveTendencies(rows, neutralSkills, 7);
+		assert(t.tendencyThree >= 0 && t.tendencyThree <= 100);
+		// Noise must not change the stats-derived (absolute) marker.
+		assert.equal(t.tendencyAbsolute, true);
+		sum += t.tendencyThree;
+		if (t.tendencyThree !== exact.tendencyThree) {
+			anyDifferent = true;
+		}
+	}
+	assert(anyDifferent, "noise should actually vary the output");
+	// Mean of the draws stays near the exact derivation (sigma 7, N=300 =>
+	// s.e. ~0.4; 2 points is a generous band).
+	const mean = sum / N;
+	assert(
+		Math.abs(mean - exact.tendencyThree) < 2,
+		`noisy mean ${mean} drifted from exact ${exact.tendencyThree}`,
+	);
 });
 
 test("playoff rows are ignored", () => {

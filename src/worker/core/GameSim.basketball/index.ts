@@ -25,20 +25,40 @@ import getWinner from "../../../common/getWinner.ts";
 import { formatClock } from "../../../common/formatClock.ts";
 import PlayByPlayLogger from "./PlayByPlayLogger.ts";
 import { choice, truncGauss, uniform } from "../../../common/random.ts";
+import {
+	TENDENCY_SHARE,
+	shareFromTendency,
+} from "../../../common/tendencyShares.basketball.ts";
 
 const SHOT_CLOCK = 24;
 
 // A shot counts as a fast break if it goes up this quickly after a live-ball
 // change of possession (steal or defensive rebound).
 const FAST_BREAK_SECONDS = 8;
-// Per-player tendencies (0-100, 50 = neutral). Converted to a multiplier with
-// these max strengths (at 0 or 100). Behavioral bias on top of skill.
-const TENDENCY_USAGE = 0.5; // who looks for their own shot
-const TENDENCY_THREE = 0.5; // 3 vs 2 shot selection
-const TENDENCY_ATRIM = 0.5; // attack the rim
-const TENDENCY_POST = 0.5; // post up
-const TENDENCY_PASS = 0.4; // pass-first (raises assists, lowers own usage)
+// Per-player tendencies (0-100, 50 = neutral). Shot-mix (three/atRim/post) and
+// usage tendencies are NOT gentle nudges: they encode target shares directly
+// (see tendencyShares.basketball.ts) and drive the shot-type and shooter
+// decisions, so a player's simulated volume and shot mix match who he is (a
+// low-tendencyThree star shooter still won't jack threes; a 24-usg% star won't
+// take 35 shots a game). Skill then governs whether shots go in. The pass
+// tendency remains a multiplier, biasing who is credited with assists.
+const TENDENCY_PASS = 0.4; // pass-first (biases who is credited the assist)
 const PASS_AST_W = 0.25; // pass-first lineups produce more assisted makes
+// Mild skill modulation of shooter selection on top of the usage-tendency
+// share: weight multiplier is USAGE_SKILL_BASE + USAGE_SKILL_W * usage
+// composite, ~1.0 at a typical 0.5 rating.
+const USAGE_SKILL_BASE = 0.7;
+const USAGE_SKILL_W = 0.6;
+
+// Shot-mix calibration. The shot-type decision below doesn't see every FGA
+// (putbacks and tip-ins are decided upstream and are all at-rim attempts), so
+// decision-point probabilities are scaled to hit the target share of total FGA.
+const THREE_ATTEMPT_CAL = 0.98; // 3P decision rate -> 3PA share of all FGA
+const RIM_MIX_CAL = 0.95; // at-rim decision weight (putbacks already add rim FGA)
+// Mild skill modulation of the 2P mix: weight multiplier is
+// MIX_SKILL_BASE + MIX_SKILL_W * compositeRating, ~1.0 at a typical 0.5 rating.
+const MIX_SKILL_BASE = 0.6;
+const MIX_SKILL_W = 0.8;
 
 // Convert a 0-100 tendency into a multiplier centered on 1.
 const tendencyFactor = (tendency: number, strength: number) =>
@@ -149,6 +169,9 @@ type PlayerGameSim = {
 		post: number;
 		pass: number;
 		clutch: number;
+		// True when the shot-mix tendencies were derived from real career stats
+		// (absolute shares), so era scaling (threePointTendencyFactor) is skipped.
+		absolute: boolean;
 	};
 	hotHand: number; // in-game make/miss streak (-3..3), transient
 };
@@ -1872,7 +1895,9 @@ class GameSim extends GameSimBase {
 			}
 		}
 
-		const shooter = this.pickPlayer("usage", this.o, 1.25);
+		// Power 1 preserves the usage-tendency shares (the weights ARE target
+		// possession shares); a higher power would re-concentrate volume on stars.
+		const shooter = this.pickPlayer("usage", this.o, 1);
 
 		// Non-shooting foul?
 		if (
@@ -2079,16 +2104,6 @@ class GameSim extends GameSimBase {
 				0.55 + (shootingThreePointerScaled - 0.55) * (0.3 / 0.45);
 		}
 
-		// Too many players shooting 3s at the low end - scale 0.35-0.45 to 0.1-0.45, and 0-0.35 to 0-0.1
-		let shootingThreePointerScaled2 = shootingThreePointerScaled;
-		if (shootingThreePointerScaled2 < 0.35) {
-			shootingThreePointerScaled2 =
-				0 + shootingThreePointerScaled2 * (0.1 / 0.35);
-		} else if (shootingThreePointerScaled2 < 0.45) {
-			shootingThreePointerScaled2 =
-				0.1 + (shootingThreePointerScaled2 - 0.35) * (0.35 / 0.1);
-		}
-
 		// In some situations (4th quarter late game situations depending on score, and last second heaves in other quarters) players shoot more 3s
 		const diff = this.team[this.d].stat.pts - this.team[this.o].stat.pts;
 		const quarter = this.team[this.o].stat.ptsQtrs.length;
@@ -2140,16 +2155,20 @@ class GameSim extends GameSimBase {
 			}
 		} else if (
 			forceThreePointer ||
+			// The player's tendency encodes his target 3PA share of FGA; shoot a
+			// three at that rate, scaled by coaching and (for players without
+			// stats-derived tendencies) the league-wide era factor. Shooting skill
+			// no longer drives attempt volume - it drives probMake below - so a
+			// skilled-but-unwilling shooter (peak Larry Bird) stays low volume.
 			Math.random() <
-				0.67 *
-					shootingThreePointerScaled2 *
-					g.get("threePointTendencyFactor") *
+				THREE_ATTEMPT_CAL *
+					shareFromTendency(p.tendencies.three, TENDENCY_SHARE.three) *
+					(p.tendencies.absolute ? 1 : g.get("threePointTendencyFactor")) *
 					(1 +
 						COACHING.THREE_PT_TENDENCY *
 							this.team[this.o].coaching.threePointTendency) *
 					(1 +
-						COACHING.PAINT_PUSH_3S * this.team[this.d].coaching.paintDefense) *
-					tendencyFactor(p.tendencies.three, TENDENCY_THREE)
+						COACHING.PAINT_PUSH_3S * this.team[this.d].coaching.paintDefense)
 		) {
 			// Three pointer
 			type = "threePointer";
@@ -2164,29 +2183,43 @@ class GameSim extends GameSimBase {
 			}
 			probMake *= g.get("threePointAccuracyFactor");
 		} else {
-			const r1 = 0.8 * Math.random() * p.compositeRating.shootingMidRange;
-			const r2 =
-				Math.random() *
-				(p.compositeRating.shootingAtRim +
-					this.synergyFactor *
-						(this.team[this.o].synergy.off - this.team[this.d].synergy.def)) *
-				tendencyFactor(p.tendencies.atRim, TENDENCY_ATRIM); // Synergy makes easy shots either more likely or less likely
+			// 2P shot mix: the player's tendencies encode his target rim/post shares
+			// of 2P attempts (mid-range is the remainder), mildly modulated by skill.
+			// Synergy makes easy shots (at rim, post) either more or less likely.
+			const synergyTerm =
+				this.synergyFactor *
+				(this.team[this.o].synergy.off - this.team[this.d].synergy.def);
 
-			const r3 =
-				Math.random() *
-				(p.compositeRating.shootingLowPost +
-					this.synergyFactor *
-						(this.team[this.o].synergy.off - this.team[this.d].synergy.def)) *
-				tendencyFactor(p.tendencies.post, TENDENCY_POST); // Synergy makes easy shots either more likely or less likely
+			const shareRim = shareFromTendency(
+				p.tendencies.atRim,
+				TENDENCY_SHARE.atRim,
+			);
+			const sharePost = shareFromTendency(
+				p.tendencies.post,
+				TENDENCY_SHARE.post,
+			);
+			const shareMid = Math.max(0.05, 1 - shareRim - sharePost);
 
-			if (r1 > r2 && r1 > r3) {
+			const skillW = (rating: number) =>
+				Math.max(0.1, MIX_SKILL_BASE + MIX_SKILL_W * rating);
+
+			const wRim =
+				RIM_MIX_CAL *
+				shareRim *
+				skillW(p.compositeRating.shootingAtRim + synergyTerm);
+			const wPost =
+				sharePost * skillW(p.compositeRating.shootingLowPost + synergyTerm);
+			const wMid = shareMid * skillW(p.compositeRating.shootingMidRange);
+
+			const r = Math.random() * (wRim + wPost + wMid);
+			if (r < wMid) {
 				// Two point jumper
 				type = "midRange";
 				fgaLogType = "fgaMidRange";
 				probMissAndFoul = 0.07;
 				probMake = p.compositeRating.shootingMidRange * 0.32 + 0.42;
 				probAndOne = 0.05;
-			} else if (r2 > r3) {
+			} else if (r < wMid + wRim) {
 				// Dunk, fast break or half court
 				type = "atRim";
 				fgaLogType = "fgaAtRim";
@@ -3131,13 +3164,19 @@ class GameSim extends GameSimBase {
 				}
 			}
 
-			// Per-player tendencies bias who shoots and who passes. A pass-first
-			// player looks for their own shot less and sets up teammates more.
+			// Per-player tendencies bias who shoots and who passes.
 			if (rating === "usage") {
-				compositeRating *=
-					tendencyFactor(p.tendencies.usage, TENDENCY_USAGE) *
-					tendencyFactor(100 - p.tendencies.pass, TENDENCY_PASS);
+				// The usage tendency encodes the player's target share of team
+				// possessions (usg%), so it drives shooter selection directly - with
+				// only mild skill modulation, since skill is already reflected in the
+				// tendency (derived from real usg% for real players, generated from
+				// scoring skills for random ones). Stacking the full usage composite
+				// on top double-counted skill and produced 40 ppg stat lines.
+				compositeRating =
+					shareFromTendency(p.tendencies.usage, TENDENCY_SHARE.usage, 0.05) *
+					(USAGE_SKILL_BASE + USAGE_SKILL_W * compositeRating);
 			} else if (rating === "passing") {
+				// A pass-first player sets up teammates more.
 				compositeRating *= tendencyFactor(p.tendencies.pass, TENDENCY_PASS);
 			}
 

@@ -380,6 +380,7 @@ const getSettingsFromGameAttributes = (
 				key === "noStartingInjuries" ||
 				key === "randomization" ||
 				key === "realStats" ||
+				key === "realTendencies" ||
 				key === "giveMeWorstRoster"
 			) {
 				continue;
@@ -846,6 +847,7 @@ const NewLeague = (props: View<"newLeague">) => {
 						settings.randomization === "debutsForeverKeepCurrent",
 					realDraftRatings: settings.realDraftRatings,
 					realStats: settings.realStats,
+					realTendencies: settings.realTendencies,
 					includePlayers: state.keptKeys.includes("players"),
 				};
 			} else if (state.customize === "legends") {
@@ -874,6 +876,9 @@ const NewLeague = (props: View<"newLeague">) => {
 				shuffleRosters: actualShuffleRosters,
 				importLid: props.lid,
 				getLeagueOptions,
+				// Cross-era rosters are generated before settings are chosen, so the
+				// Player Tendencies setting is applied at creation time in the worker.
+				crossEra: state.customize === "crossEra",
 				startingSeasonFromInput,
 				confs: state.confs,
 				divs: state.divs,
@@ -1160,6 +1165,7 @@ const NewLeague = (props: View<"newLeague">) => {
 					hasPlayers={state.keptKeys.includes("players")}
 					// Don't want legends for this!
 					realPlayers={state.customize === "real"}
+					crossEra={state.customize === "crossEra"}
 				/>
 			</m.div>
 		);

@@ -1990,6 +1990,12 @@ export type GetLeagueOptionsReal = {
 	randomDebutsKeepCurrent: boolean;
 	realDraftRatings: "draft" | "rookie";
 	realStats: "none" | "lastSeason" | "allActive" | "allActiveHOF" | "all";
+	// How player behavioral tendencies are set. "historical": derived from real
+	// career stats with some per-league variation (default). "historicalExact":
+	// derived, deterministic. "skill": from ratings only, i.e. historical players
+	// reinterpreted as modern players. Optional so old saved settings /
+	// exhibition callers default to "historical".
+	realTendencies?: "historical" | "historicalExact" | "skill";
 	includePlayers: boolean;
 
 	// For exhibition game only

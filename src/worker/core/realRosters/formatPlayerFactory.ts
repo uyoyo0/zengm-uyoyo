@@ -16,7 +16,9 @@ import setDraftProspectRatingsBasedOnDraftPosition from "./setDraftProspectRatin
 import { getEWA } from "../../util/advStats.basketball.ts";
 import { averageSalary } from "./averageSalary.ts";
 import { helpers } from "../../util/index.ts";
-import deriveTendencies from "./deriveTendencies.basketball.ts";
+import deriveTendencies, {
+	DERIVED_TENDENCY_NOISE,
+} from "./deriveTendencies.basketball.ts";
 
 const MINUTES_PER_GAME = 48;
 
@@ -52,11 +54,36 @@ const formatPlayerFactory = async (
 ) => {
 	let pid = initialPid;
 
+	// How tendencies are set (see GetLeagueOptionsReal.realTendencies). Legends
+	// leagues have no option UI and always use historical-with-variation.
+	const realTendencies =
+		options.type === "real"
+			? (options.realTendencies ?? "historical")
+			: "historical";
+	const tendencyNoise =
+		realTendencies === "historical"
+			? DERIVED_TENDENCY_NOISE
+			: realTendencies === "skill"
+				? 9 // match genTendencies' spread for random players
+				: 0;
+
 	let basketballStats: BasketballStats | undefined;
 	// Index career stats by slug once, so per-player tendency derivation (and any
 	// other lookups) are O(1) rather than scanning the full stats array each time.
+	// Loaded in the historical tendency modes even when realStats is "none":
+	// derivation always needs the real career stats (otherwise every player falls
+	// back to skill-based tendencies and e.g. Larry Bird jacks threes like a
+	// modern volume shooter). The realStats setting still controls whether stats
+	// rows are imported into the league, via the statsTemp branches below
+	// (legends never import stats). In "skill" mode the stats are only loaded
+	// when realStats needs them for import.
+	const needStatsForTendencies = realTendencies !== "skill";
 	let statsBySlug: Map<string, BasketballStats["stats"]> | undefined;
-	if (options.type === "real" && options.realStats !== "none") {
+	if (
+		(options.type === "real" &&
+			(needStatsForTendencies || options.realStats !== "none")) ||
+		(options.type === "legends" && needStatsForTendencies)
+	) {
 		basketballStats = await loadStatsBasketball();
 
 		statsBySlug = new Map();
@@ -371,12 +398,18 @@ const formatPlayerFactory = async (
 		}
 
 		// Behavioral tendencies (usage/three/atRim/post/pass/clutch) for the sim.
-		// Derived from the player's real career stats when available (so shooters
-		// shoot threes, bigs post up, etc.), otherwise from their skill ratings.
-		// Applied to every ratings row as a career aggregate, since the sim reads
-		// tendencies off the active ratings row.
-		const careerStats = statsBySlug?.get(slug) ?? [];
-		const tendencies = deriveTendencies(careerStats, processedRatings.at(-1)!);
+		// In the historical modes, derived from the player's real career stats when
+		// available (so shooters shoot threes, bigs post up, etc.) with optional
+		// per-league variation; in "skill" mode (or when stats are missing), from
+		// skill ratings. Applied to every ratings row as a career aggregate, since
+		// the sim reads tendencies off the active ratings row.
+		const careerStats =
+			realTendencies === "skill" ? [] : (statsBySlug?.get(slug) ?? []);
+		const tendencies = deriveTendencies(
+			careerStats,
+			processedRatings.at(-1)!,
+			tendencyNoise,
+		);
 		for (const row of processedRatings) {
 			Object.assign(row, tendencies);
 		}

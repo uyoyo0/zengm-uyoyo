@@ -262,6 +262,8 @@ export const processTeam = async (
 				post: (rating as any).tendencyPost ?? 50,
 				pass: (rating as any).tendencyPass ?? 50,
 				clutch: (rating as any).tendencyClutch ?? 50,
+				// Stats-derived (absolute) shot-mix tendencies skip era scaling.
+				absolute: (rating as any).tendencyAbsolute ?? false,
 			},
 			hotHand: 0,
 		};
