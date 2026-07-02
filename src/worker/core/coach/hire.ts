@@ -30,6 +30,7 @@ const hire = async (
 	for (const c of current) {
 		if (c.cid !== cid) {
 			c.tid = PLAYER.FREE_AGENT;
+			c.prevTid = tid;
 			await idb.cache.coaches.put(c);
 		}
 	}

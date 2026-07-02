@@ -103,13 +103,19 @@ const writeTeamStats = async (results: GameResults) => {
 			scoutingPaid =
 				levelToAmount(t.budget.scouting, salaryCap) / g.get("numGames");
 			if (isSport("basketball")) {
-				// Coaching expense is the head coach's salary.
+				// Coaching expense is the head coach's salary, plus dead money still
+				// owed to fired coaches.
 				const teamCoaches = await idb.cache.coaches.indexGetAll(
 					"coachesByTid",
 					t.tid,
 				);
+				const season = g.get("season");
+				const deadMoney = (t.deadCoachMoney ?? [])
+					.filter((d) => d.exp >= season)
+					.reduce((sum, d) => sum + d.amountPerYear, 0);
 				coachingPaid =
-					(teamCoaches[0]?.contract.amount ?? 0) / g.get("numGames");
+					((teamCoaches[0]?.contract.amount ?? 0) + deadMoney) /
+					g.get("numGames");
 			} else {
 				coachingPaid =
 					levelToAmount(t.budget.coaching, salaryCap) / g.get("numGames");

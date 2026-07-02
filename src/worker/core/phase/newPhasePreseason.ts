@@ -249,7 +249,7 @@ const newPhasePreseason = async (
 	// Other sports keep using the team's coaching budget level.
 	const coachingLevels: Record<number, number> = {};
 	if (isSport("basketball")) {
-		await coach.autoHireFire(conditions);
+		await coach.processCoachMarket(conditions);
 		await coach.updateTeamCoaching();
 		const coaches = await idb.cache.coaches.getAll();
 		const developmentByTid = new Map(
