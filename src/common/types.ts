@@ -840,6 +840,7 @@ export type LogEventType =
 	| "changes"
 	| "coachHired"
 	| "coachFired"
+	| "coachRetired"
 	| "coachAward"
 	| "draft"
 	| "draftLottery"
@@ -1555,6 +1556,10 @@ export type CoachWithoutKey = {
 		lost: number;
 		expectedWins: number;
 	}[];
+	// Snapshot of ratings at each preseason, appended by coach/develop.ts.
+	ratingsHistory?: ({
+		season: number;
+	} & CoachRatings)[];
 	srID?: string;
 };
 

@@ -205,6 +205,51 @@ const Coach = ({
 				<p>No completed seasons yet.</p>
 			)}
 
+			{coach.ratingsHistory && coach.ratingsHistory.length > 1 ? (
+				<>
+					<h2>Ratings history</h2>
+					<div className="table-responsive">
+						<table
+							className="table table-striped table-borderless table-sm"
+							style={{ maxWidth: 400 }}
+						>
+							<thead>
+								<tr>
+									<th>Season</th>
+									<th className="text-end">Ovr</th>
+									<th className="text-end" title="Development">
+										Dev
+									</th>
+									<th className="text-end" title="Tactics">
+										Tac
+									</th>
+									<th className="text-end" title="Adaptability">
+										Adp
+									</th>
+									<th className="text-end" title="Motivation">
+										Mot
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								{[...coach.ratingsHistory]
+									.sort((a, b) => b.season - a.season)
+									.map((row) => (
+										<tr key={row.season}>
+											<td>{row.season}</td>
+											<td className="text-end">{row.ovr}</td>
+											<td className="text-end">{row.development}</td>
+											<td className="text-end">{row.tactics}</td>
+											<td className="text-end">{row.adaptability}</td>
+											<td className="text-end">{row.motivation}</td>
+										</tr>
+									))}
+							</tbody>
+						</table>
+					</div>
+				</>
+			) : null}
+
 			<h2>Awards</h2>
 			{coach.awards.length > 0 ? (
 				<ul>

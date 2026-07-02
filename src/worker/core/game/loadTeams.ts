@@ -180,14 +180,17 @@ export const processTeam = async (
 		playoffs,
 	});
 
-	// Head coach's tactics rating drives lineup-fit decisions in the sim.
+	// Head coach's tactics rating drives lineup-fit decisions in the sim, and
+	// motivation drives bench energy recovery.
 	let coachTactics = 50;
+	let coachMotivation = 50;
 	if (isSport("basketball") && teamInput.tid >= 0) {
 		const coachesForTeam = await idb.cache.coaches.indexGetAll(
 			"coachesByTid",
 			teamInput.tid,
 		);
 		coachTactics = coachesForTeam[0]?.ratings.tactics ?? 50;
+		coachMotivation = coachesForTeam[0]?.ratings.motivation ?? 50;
 	}
 
 	const t: any = {
@@ -214,6 +217,7 @@ export const processTeam = async (
 		// matchup adjustments are layered on later, once both teams are loaded.
 		coaching: teamInput.coaching ?? DEFAULT_COACHING,
 		coachTactics,
+		coachMotivation,
 	};
 
 	const playThroughInjuries = actualPlayThroughInjuries[playoffs ? 1 : 0];
