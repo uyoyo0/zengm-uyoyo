@@ -215,6 +215,22 @@ test("baseline: adaptability with a philosophy opposite the roster", async () =>
 	);
 });
 
+test("baseline: motivation-only isolation (bench energy recovery)", async () => {
+	const { wins } = await runWithCoaches({
+		coach0: makeCoach(0, { motivation: 90 }),
+		coach1: makeCoach(1, { motivation: 10 }),
+		n: 400,
+	});
+	report(
+		`[motivation] 90-vs-10 win%: ${pct(winPct(wins))} (${wins[0]}-${wins[1]})`,
+	);
+	// Fresher legs should never systematically lose; loose floor until tuning.
+	assert(
+		winPct(wins) > 0.45,
+		`motivated team should not lose: ${winPct(wins)}`,
+	);
+});
+
 test("baseline: per-dial win impact at extremes", async () => {
 	// Which dials are true tradeoffs vs strictly better in one direction? Feeds
 	// the Phase 4 retune. Coaches are identical (neutral); only team dials vary.

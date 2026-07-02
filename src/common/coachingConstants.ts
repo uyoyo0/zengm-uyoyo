@@ -30,6 +30,10 @@ export const COACHING = {
 	AVAILABILITY_MAX: 0.4,
 	// Maximum per-matchup dial tweak (at tactics = 100) vs the opponent profile.
 	MATCHUP_MAX: 0.5,
+
+	// Coach motivation (0-100, 50 = neutral) scales how fast benched players
+	// recover energy: motivated teams stay fresh late in games.
+	MOTIVATION_RECOVERY: 0.3,
 } as const;
 
 // How much a coach's development rating (0-100, 50 = league average) scales a

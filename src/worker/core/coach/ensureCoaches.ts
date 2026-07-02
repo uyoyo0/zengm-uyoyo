@@ -1,5 +1,6 @@
 import { idb } from "../../db/index.ts";
 import { g } from "../../util/index.ts";
+import { randInt } from "../../../common/random.ts";
 import { PLAYER, DEFAULT_COACHING } from "../../../common/constants.ts";
 import generate from "./generate.ts";
 import updateTeamCoaching from "./updateTeamCoaching.ts";
@@ -59,7 +60,11 @@ const ensureCoaches = async () => {
 		(c) => c.tid === PLAYER.FREE_AGENT,
 	).length;
 	for (let i = numFreeAgents; i < FREE_AGENT_POOL_MIN; i++) {
-		await idb.cache.coaches.add(await generate(PLAYER.FREE_AGENT));
+		// Cap pool ages below retirement range so the pool doesn't immediately
+		// churn out via retirement.
+		await idb.cache.coaches.add(
+			await generate(PLAYER.FREE_AGENT, { age: randInt(38, 58) }),
+		);
 	}
 
 	// Make sure each team's stored effective style reflects its coach + roster, so

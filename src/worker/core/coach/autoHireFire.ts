@@ -1,18 +1,49 @@
 import { idb } from "../../db/index.ts";
-import { g, helpers } from "../../util/index.ts";
+import { g, helpers, logEvent } from "../../util/index.ts";
 import { PLAYER } from "../../../common/constants.ts";
 import { orderBy } from "../../../common/utils.ts";
 import genContract from "./genContract.ts";
 import hire from "./hire.ts";
 import fire from "./fire.ts";
 import ensureCoaches from "./ensureCoaches.ts";
+import developCoach, { shouldRetire } from "./develop.ts";
 import type { Conditions } from "../../../common/types.ts";
 
-// Offseason coach churn: renew expiring contracts, let AI teams fire
-// underperformers, and make sure every team has a coach. Run each preseason.
+// Offseason coach churn: develop/age coaches, retire the old ones, renew
+// expiring contracts, let AI teams fire underperformers, and make sure every
+// team has a coach. Run each preseason.
 const autoHireFire = async (conditions?: Conditions) => {
 	const season = g.get("season");
 	const userTids = g.get("userTids");
+
+	// Coaches develop with age and experience, and old coaches whose contract is
+	// up (or who are unemployed) may retire. Never mid-contract.
+	for (const coach of await idb.cache.coaches.getAll()) {
+		developCoach(coach, season);
+
+		const age = season - coach.born.year;
+		const betweenContracts =
+			coach.tid === PLAYER.FREE_AGENT ||
+			(coach.tid >= 0 && coach.contract.exp < season);
+		if (betweenContracts && shouldRetire(age)) {
+			const fromTid = coach.tid;
+			coach.tid = PLAYER.RETIRED;
+			await idb.cache.coaches.put(coach);
+			await logEvent(
+				{
+					type: "coachRetired",
+					text: `Head coach ${coach.firstName} ${coach.lastName} retired at age ${age}.`,
+					tids: fromTid >= 0 ? [fromTid] : [],
+					showNotification: fromTid >= 0 && userTids.includes(fromTid),
+					score: 20,
+				},
+				conditions,
+			);
+			continue;
+		}
+
+		await idb.cache.coaches.put(coach);
+	}
 
 	// Renew expired contracts in place (coaches re-sign rather than walk; AI churn
 	// is handled by firing below).

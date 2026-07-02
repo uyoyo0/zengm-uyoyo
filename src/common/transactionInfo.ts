@@ -120,6 +120,10 @@ export const types: Partial<
 		text: "Coach Fired",
 		category: "team",
 	},
+	coachRetired: {
+		text: "Coach Retired",
+		category: "team",
+	},
 	coachAward: {
 		text: "Coach Award",
 		category: "award",

@@ -176,8 +176,9 @@ const Coaches = ({
 				Every team has a head coach who sets its playing style and develops its
 				players. <b>Dev</b> drives player progression, <b>Tac</b> in-game
 				adjustments, <b>Adp</b> how much they tailor their style to the roster,
-				and <b>Mot</b> morale. <b>Δ</b> is wins above expectation this season.
-				Hire from the free-agent pool below.
+				and <b>Mot</b> how fresh the team stays late in games. <b>Δ</b> is wins
+				above expectation this season. Coaches develop with experience, decline
+				with age, and eventually retire. Hire from the free-agent pool below.
 			</p>
 
 			{canEdit && !userHasCoach ? (

@@ -18,7 +18,11 @@ const updateCoach = async (
 			return { errorMessage: "Invalid coach ID." };
 		}
 
-		const coach = await idb.cache.coaches.get(cid);
+		// Retired coaches (tid < FREE_AGENT) fall out of the cache, so fall back
+		// to reading the store directly.
+		const coach =
+			(await idb.cache.coaches.get(cid)) ??
+			(await idb.league.get("coaches", cid));
 		if (!coach) {
 			return { errorMessage: "Coach not found." };
 		}

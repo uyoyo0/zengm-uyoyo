@@ -159,6 +159,7 @@ type TeamGameSim = {
 	compositeRating: any;
 	coaching: TeamCoaching;
 	coachTactics: number; // head coach's tactics rating (0-100), for lineup fit
+	coachMotivation: number; // head coach's motivation rating (0-100), for bench recovery
 	player: PlayerGameSim[];
 	synergy: {
 		def: number;
@@ -516,6 +517,9 @@ class GameSim extends GameSimBase {
 
 			// @ts-expect-error
 			delete this.team[t].coachTactics;
+
+			// @ts-expect-error
+			delete this.team[t].coachMotivation;
 
 			for (const p of this.team[t].player) {
 				// @ts-expect-error
@@ -1608,7 +1612,13 @@ class GameSim extends GameSimBase {
 					}
 				} else {
 					this.recordStat(t, p, "benchTime", min);
-					this.recordStat(t, p, "energy", min * 0.094);
+					// A motivated locker room recovers faster on the bench, so the
+					// team is fresher late in games.
+					const motivationFactor =
+						1 +
+						COACHING.MOTIVATION_RECOVERY *
+							(((this.team[t]?.coachMotivation ?? 50) - 50) / 50);
+					this.recordStat(t, p, "energy", min * 0.094 * motivationFactor);
 
 					if (p.stat.energy > 1) {
 						p.stat.energy = 1;
