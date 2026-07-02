@@ -1,5 +1,6 @@
 import { g, helpers } from "../../util/index.ts";
 import { PHASE, STARTING_NUM_TIMEOUTS } from "../../../common/constants.ts";
+import { COACHING } from "../../../common/coachingConstants.ts";
 import jumpBallWinnerStartsThisPeriodWithPossession from "./jumpBallWinnerStartsThisPeriodWithPossession.ts";
 import getInjuryRate from "./getInjuryRate.ts";
 import type {
@@ -24,34 +25,40 @@ import getWinner from "../../../common/getWinner.ts";
 import { formatClock } from "../../../common/formatClock.ts";
 import PlayByPlayLogger from "./PlayByPlayLogger.ts";
 import { choice, truncGauss, uniform } from "../../../common/random.ts";
+import {
+	TENDENCY_SHARE,
+	shareFromTendency,
+} from "../../../common/tendencyShares.basketball.ts";
 
 const SHOT_CLOCK = 24;
-
-// Coaching style dials are signed levels in [-1, 1] (0 = neutral). These constants
-// translate a level into a multiplier/delta applied in the sim. Tuned first-pass.
-const COACHING_3PT_TENDENCY = 0.4; // max +/-40% to 3PT tendency
-const COACHING_PACE = 0.12; // max +/-12% to pace
-const COACHING_PACE_FATIGUE = 0.15; // faster tempo is more tiring per minute
-const COACHING_CRASH_GLASS = 0.4; // max +/-40% to orbFactor
-const COACHING_TRANSITION_BONUS = 0.06; // crashing concedes easier transition shots
 
 // A shot counts as a fast break if it goes up this quickly after a live-ball
 // change of possession (steal or defensive rebound).
 const FAST_BREAK_SECONDS = 8;
-const COACHING_PAINT_PUSH_3S = 0.25; // packing the paint nudges opponents toward 3s
-const COACHING_PAINT_INTERIOR_DELTA = 0.05; // probMake delta on interior shots vs paint D
-const COACHING_PAINT_THREE_DELTA = 0.04; // probMake delta on 3s vs paint D
-const COACHING_AGGRESSION_TOV = 0.4; // steals/blocks/turnovers forced
-const COACHING_AGGRESSION_FOUL = 0.3; // tradeoff: more fouls when gambling
-
-// Per-player tendencies (0-100, 50 = neutral). Converted to a multiplier with
-// these max strengths (at 0 or 100). Behavioral bias on top of skill.
-const TENDENCY_USAGE = 0.5; // who looks for their own shot
-const TENDENCY_THREE = 0.5; // 3 vs 2 shot selection
-const TENDENCY_ATRIM = 0.5; // attack the rim
-const TENDENCY_POST = 0.5; // post up
-const TENDENCY_PASS = 0.4; // pass-first (raises assists, lowers own usage)
+// Per-player tendencies (0-100, 50 = neutral). Shot-mix (three/atRim/post) and
+// usage tendencies are NOT gentle nudges: they encode target shares directly
+// (see tendencyShares.basketball.ts) and drive the shot-type and shooter
+// decisions, so a player's simulated volume and shot mix match who he is (a
+// low-tendencyThree star shooter still won't jack threes; a 24-usg% star won't
+// take 35 shots a game). Skill then governs whether shots go in. The pass
+// tendency remains a multiplier, biasing who is credited with assists.
+const TENDENCY_PASS = 0.4; // pass-first (biases who is credited the assist)
 const PASS_AST_W = 0.25; // pass-first lineups produce more assisted makes
+// Mild skill modulation of shooter selection on top of the usage-tendency
+// share: weight multiplier is USAGE_SKILL_BASE + USAGE_SKILL_W * usage
+// composite, ~1.0 at a typical 0.5 rating.
+const USAGE_SKILL_BASE = 0.7;
+const USAGE_SKILL_W = 0.6;
+
+// Shot-mix calibration. The shot-type decision below doesn't see every FGA
+// (putbacks and tip-ins are decided upstream and are all at-rim attempts), so
+// decision-point probabilities are scaled to hit the target share of total FGA.
+const THREE_ATTEMPT_CAL = 0.98; // 3P decision rate -> 3PA share of all FGA
+const RIM_MIX_CAL = 0.95; // at-rim decision weight (putbacks already add rim FGA)
+// Mild skill modulation of the 2P mix: weight multiplier is
+// MIX_SKILL_BASE + MIX_SKILL_W * compositeRating, ~1.0 at a typical 0.5 rating.
+const MIX_SKILL_BASE = 0.6;
+const MIX_SKILL_W = 0.8;
 
 // Convert a 0-100 tendency into a multiplier centered on 1.
 const tendencyFactor = (tendency: number, strength: number) =>
@@ -78,10 +85,6 @@ const lineupCounts = (players: PlayerGameSim[]) => {
 
 // Lineup fit (coach-managed): per-player sub-value nudge for spacing / avoiding
 // redundant ball-dominant players, scaled by coach tactics. Clamped tie-breaker.
-const LINEUP_SPACE_W = 0.04;
-const LINEUP_BALLDOM_W = 0.04;
-const LINEUP_FIT_MIN = 0.9;
-const LINEUP_FIT_MAX = 1.1;
 
 // Clutch: probMake swing (in late-game close situations) at clutch 0 vs 100.
 const CLUTCH_MAX = 0.06;
@@ -166,6 +169,9 @@ type PlayerGameSim = {
 		post: number;
 		pass: number;
 		clutch: number;
+		// True when the shot-mix tendencies were derived from real career stats
+		// (absolute shares), so era scaling (threePointTendencyFactor) is skipped.
+		absolute: boolean;
 	};
 	hotHand: number; // in-game make/miss streak (-3..3), transient
 };
@@ -176,6 +182,7 @@ type TeamGameSim = {
 	compositeRating: any;
 	coaching: TeamCoaching;
 	coachTactics: number; // head coach's tactics rating (0-100), for lineup fit
+	coachMotivation: number; // head coach's motivation rating (0-100), for bench recovery
 	player: PlayerGameSim[];
 	synergy: {
 		def: number;
@@ -533,6 +540,9 @@ class GameSim extends GameSimBase {
 
 			// @ts-expect-error
 			delete this.team[t].coachTactics;
+
+			// @ts-expect-error
+			delete this.team[t].coachMotivation;
 
 			for (const p of this.team[t].player) {
 				// @ts-expect-error
@@ -957,7 +967,7 @@ class GameSim extends GameSimBase {
 		// Lasts a single possession.
 		this.currentTransitionBonus =
 			this.transitionTeam === this.o
-				? COACHING_TRANSITION_BONUS * this.transitionAmount
+				? COACHING.TRANSITION_BONUS * this.transitionAmount
 				: 0;
 		this.transitionTeam = undefined;
 
@@ -1192,15 +1202,16 @@ class GameSim extends GameSimBase {
 						if (!this.allStarGame && (spacingNeed > 0 || ballDomExcess > 0)) {
 							let fitMult = 1;
 							if (spacingNeed > 0 && isSpacer(p)) {
-								fitMult += tacticsScale * LINEUP_SPACE_W * spacingNeed;
+								fitMult += tacticsScale * COACHING.LINEUP_SPACE_W * spacingNeed;
 							}
 							if (ballDomExcess > 0 && isBallDominant(p)) {
-								fitMult -= tacticsScale * LINEUP_BALLDOM_W * ballDomExcess;
+								fitMult -=
+									tacticsScale * COACHING.LINEUP_BALLDOM_W * ballDomExcess;
 							}
 							ovrs[p.id]! *= helpers.bound(
 								fitMult,
-								LINEUP_FIT_MIN,
-								LINEUP_FIT_MAX,
+								COACHING.LINEUP_FIT_MIN,
+								COACHING.LINEUP_FIT_MAX,
 							);
 						}
 					}
@@ -1599,7 +1610,7 @@ class GameSim extends GameSimBase {
 		// taxing per minute, so the offense's pace dial scales how quickly players
 		// on both teams tire this possession. Minutes played are unchanged.
 		const paceFatigue =
-			1 + COACHING_PACE_FATIGUE * (this.team[offenseT]?.coaching?.pace ?? 0);
+			1 + COACHING.PACE_FATIGUE * (this.team[offenseT]?.coaching?.pace ?? 0);
 
 		for (const t of teamNums) {
 			// Update minutes (overall, court, and bench)
@@ -1624,7 +1635,13 @@ class GameSim extends GameSimBase {
 					}
 				} else {
 					this.recordStat(t, p, "benchTime", min);
-					this.recordStat(t, p, "energy", min * 0.094);
+					// A motivated locker room recovers faster on the bench, so the
+					// team is fresher late in games.
+					const motivationFactor =
+						1 +
+						COACHING.MOTIVATION_RECOVERY *
+							(((this.team[t]?.coachMotivation ?? 50) - 50) / 50);
+					this.recordStat(t, p, "energy", min * 0.094 * motivationFactor);
 
 					if (p.stat.energy > 1) {
 						p.stat.energy = 1;
@@ -1711,7 +1728,7 @@ class GameSim extends GameSimBase {
 		// The offense's coaching pace dial speeds up (faster -> shorter possessions) or slows down play.
 		const effectivePaceFactor =
 			this.paceFactor *
-			(1 + COACHING_PACE * (this.team[this.o]?.coaching?.pace ?? 0));
+			(1 + COACHING.PACE * (this.team[this.o]?.coaching?.pace ?? 0));
 		const secondsAdjusted =
 			this.t - seconds / effectivePaceFactor > 40
 				? seconds / effectivePaceFactor
@@ -1878,14 +1895,16 @@ class GameSim extends GameSimBase {
 			}
 		}
 
-		const shooter = this.pickPlayer("usage", this.o, 1.25);
+		// Power 1 preserves the usage-tendency shares (the weights ARE target
+		// possession shares); a higher power would re-concentrate volume on stars.
+		const shooter = this.pickPlayer("usage", this.o, 1);
 
 		// Non-shooting foul?
 		if (
 			Math.random() <
 				0.08 *
 					g.get("foulRateFactor") *
-					this.defensiveAggressionFactor(COACHING_AGGRESSION_FOUL) ||
+					this.defensiveAggressionFactor(COACHING.AGGRESSION_FOUL) ||
 			clockFactor === "intentionalFoul"
 		) {
 			let dt;
@@ -1967,7 +1986,7 @@ class GameSim extends GameSimBase {
 	probTov() {
 		return boundProb(
 			(g.get("turnoverFactor") *
-				this.defensiveAggressionFactor(COACHING_AGGRESSION_TOV) *
+				this.defensiveAggressionFactor(COACHING.AGGRESSION_TOV) *
 				(0.14 * this.team[this.d].compositeRating.defense)) /
 				(0.5 *
 					(this.team[this.o].compositeRating.dribbling +
@@ -2019,7 +2038,7 @@ class GameSim extends GameSimBase {
 	probStl() {
 		return boundProb(
 			g.get("stealFactor") *
-				this.defensiveAggressionFactor(COACHING_AGGRESSION_TOV) *
+				this.defensiveAggressionFactor(COACHING.AGGRESSION_TOV) *
 				((0.45 * this.team[this.d].compositeRating.defensePerimeter) /
 					(0.5 *
 						(this.team[this.o].compositeRating.dribbling +
@@ -2085,16 +2104,6 @@ class GameSim extends GameSimBase {
 				0.55 + (shootingThreePointerScaled - 0.55) * (0.3 / 0.45);
 		}
 
-		// Too many players shooting 3s at the low end - scale 0.35-0.45 to 0.1-0.45, and 0-0.35 to 0-0.1
-		let shootingThreePointerScaled2 = shootingThreePointerScaled;
-		if (shootingThreePointerScaled2 < 0.35) {
-			shootingThreePointerScaled2 =
-				0 + shootingThreePointerScaled2 * (0.1 / 0.35);
-		} else if (shootingThreePointerScaled2 < 0.45) {
-			shootingThreePointerScaled2 =
-				0.1 + (shootingThreePointerScaled2 - 0.35) * (0.35 / 0.1);
-		}
-
 		// In some situations (4th quarter late game situations depending on score, and last second heaves in other quarters) players shoot more 3s
 		const diff = this.team[this.d].stat.pts - this.team[this.o].stat.pts;
 		const quarter = this.team[this.o].stat.ptsQtrs.length;
@@ -2146,16 +2155,20 @@ class GameSim extends GameSimBase {
 			}
 		} else if (
 			forceThreePointer ||
+			// The player's tendency encodes his target 3PA share of FGA; shoot a
+			// three at that rate, scaled by coaching and (for players without
+			// stats-derived tendencies) the league-wide era factor. Shooting skill
+			// no longer drives attempt volume - it drives probMake below - so a
+			// skilled-but-unwilling shooter (peak Larry Bird) stays low volume.
 			Math.random() <
-				0.67 *
-					shootingThreePointerScaled2 *
-					g.get("threePointTendencyFactor") *
+				THREE_ATTEMPT_CAL *
+					shareFromTendency(p.tendencies.three, TENDENCY_SHARE.three) *
+					(p.tendencies.absolute ? 1 : g.get("threePointTendencyFactor")) *
 					(1 +
-						COACHING_3PT_TENDENCY *
+						COACHING.THREE_PT_TENDENCY *
 							this.team[this.o].coaching.threePointTendency) *
 					(1 +
-						COACHING_PAINT_PUSH_3S * this.team[this.d].coaching.paintDefense) *
-					tendencyFactor(p.tendencies.three, TENDENCY_THREE)
+						COACHING.PAINT_PUSH_3S * this.team[this.d].coaching.paintDefense)
 		) {
 			// Three pointer
 			type = "threePointer";
@@ -2170,29 +2183,43 @@ class GameSim extends GameSimBase {
 			}
 			probMake *= g.get("threePointAccuracyFactor");
 		} else {
-			const r1 = 0.8 * Math.random() * p.compositeRating.shootingMidRange;
-			const r2 =
-				Math.random() *
-				(p.compositeRating.shootingAtRim +
-					this.synergyFactor *
-						(this.team[this.o].synergy.off - this.team[this.d].synergy.def)) *
-				tendencyFactor(p.tendencies.atRim, TENDENCY_ATRIM); // Synergy makes easy shots either more likely or less likely
+			// 2P shot mix: the player's tendencies encode his target rim/post shares
+			// of 2P attempts (mid-range is the remainder), mildly modulated by skill.
+			// Synergy makes easy shots (at rim, post) either more or less likely.
+			const synergyTerm =
+				this.synergyFactor *
+				(this.team[this.o].synergy.off - this.team[this.d].synergy.def);
 
-			const r3 =
-				Math.random() *
-				(p.compositeRating.shootingLowPost +
-					this.synergyFactor *
-						(this.team[this.o].synergy.off - this.team[this.d].synergy.def)) *
-				tendencyFactor(p.tendencies.post, TENDENCY_POST); // Synergy makes easy shots either more likely or less likely
+			const shareRim = shareFromTendency(
+				p.tendencies.atRim,
+				TENDENCY_SHARE.atRim,
+			);
+			const sharePost = shareFromTendency(
+				p.tendencies.post,
+				TENDENCY_SHARE.post,
+			);
+			const shareMid = Math.max(0.05, 1 - shareRim - sharePost);
 
-			if (r1 > r2 && r1 > r3) {
+			const skillW = (rating: number) =>
+				Math.max(0.1, MIX_SKILL_BASE + MIX_SKILL_W * rating);
+
+			const wRim =
+				RIM_MIX_CAL *
+				shareRim *
+				skillW(p.compositeRating.shootingAtRim + synergyTerm);
+			const wPost =
+				sharePost * skillW(p.compositeRating.shootingLowPost + synergyTerm);
+			const wMid = shareMid * skillW(p.compositeRating.shootingMidRange);
+
+			const r = Math.random() * (wRim + wPost + wMid);
+			if (r < wMid) {
 				// Two point jumper
 				type = "midRange";
 				fgaLogType = "fgaMidRange";
 				probMissAndFoul = 0.07;
 				probMake = p.compositeRating.shootingMidRange * 0.32 + 0.42;
 				probAndOne = 0.05;
-			} else if (r2 > r3) {
+			} else if (r < wMid + wRim) {
 				// Dunk, fast break or half court
 				type = "atRim";
 				fgaLogType = "fgaAtRim";
@@ -2225,7 +2252,7 @@ class GameSim extends GameSimBase {
 				0.65 *
 				(p.compositeRating.drawingFouls / 0.5) ** 2 *
 				g.get("foulRateFactor") *
-				this.defensiveAggressionFactor(COACHING_AGGRESSION_FOUL);
+				this.defensiveAggressionFactor(COACHING.AGGRESSION_FOUL);
 
 			if (this.allStarGame) {
 				foulFactor *= 0.4;
@@ -2246,9 +2273,9 @@ class GameSim extends GameSimBase {
 			const paintDefense = this.team[this.d].coaching.paintDefense;
 			if (paintDefense !== 0) {
 				if (type === "threePointer") {
-					probMake += COACHING_PAINT_THREE_DELTA * paintDefense;
+					probMake += COACHING.PAINT_THREE_DELTA * paintDefense;
 				} else {
-					probMake -= COACHING_PAINT_INTERIOR_DELTA * paintDefense;
+					probMake -= COACHING.PAINT_INTERIOR_DELTA * paintDefense;
 				}
 			}
 
@@ -2517,7 +2544,7 @@ class GameSim extends GameSimBase {
 	probBlk() {
 		return (
 			g.get("blockFactor") *
-			this.defensiveAggressionFactor(COACHING_AGGRESSION_TOV) *
+			this.defensiveAggressionFactor(COACHING.AGGRESSION_TOV) *
 			0.2 *
 			this.team[this.d].compositeRating.blocking ** 2
 		);
@@ -3074,7 +3101,7 @@ class GameSim extends GameSimBase {
 		const orbFactor =
 			g.get("orbFactor") *
 			(1 +
-				COACHING_CRASH_GLASS * this.team[this.o].coaching.crashOffensiveGlass);
+				COACHING.CRASH_GLASS * this.team[this.o].coaching.crashOffensiveGlass);
 		if (
 			(0.75 * (2 + this.team[this.d].compositeRating.rebounding)) /
 				(orbFactor * (2 + this.team[this.o].compositeRating.rebounding)) >
@@ -3137,13 +3164,19 @@ class GameSim extends GameSimBase {
 				}
 			}
 
-			// Per-player tendencies bias who shoots and who passes. A pass-first
-			// player looks for their own shot less and sets up teammates more.
+			// Per-player tendencies bias who shoots and who passes.
 			if (rating === "usage") {
-				compositeRating *=
-					tendencyFactor(p.tendencies.usage, TENDENCY_USAGE) *
-					tendencyFactor(100 - p.tendencies.pass, TENDENCY_PASS);
+				// The usage tendency encodes the player's target share of team
+				// possessions (usg%), so it drives shooter selection directly - with
+				// only mild skill modulation, since skill is already reflected in the
+				// tendency (derived from real usg% for real players, generated from
+				// scoring skills for random ones). Stacking the full usage composite
+				// on top double-counted skill and produced 40 ppg stat lines.
+				compositeRating =
+					shareFromTendency(p.tendencies.usage, TENDENCY_SHARE.usage, 0.05) *
+					(USAGE_SKILL_BASE + USAGE_SKILL_W * compositeRating);
 			} else if (rating === "passing") {
+				// A pass-first player sets up teammates more.
 				compositeRating *= tendencyFactor(p.tendencies.pass, TENDENCY_PASS);
 			}
 

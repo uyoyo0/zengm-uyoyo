@@ -213,6 +213,7 @@ export type Settings = Pick<
 		| "debutsForever"
 		| "debutsForeverKeepCurrent";
 	realStats: GetLeagueOptionsReal["realStats"];
+	realTendencies: NonNullable<GetLeagueOptionsReal["realTendencies"]>;
 	injuries: InjuriesSetting;
 	tragicDeaths: TragicDeaths;
 	goatFormula: string;
@@ -409,6 +410,7 @@ const updateSettings = async (inputs: unknown, updateEvents: UpdateEvents) => {
 			realDraftRatings: g.get("realDraftRatings") ?? "rookie",
 			randomization: "none",
 			realStats: "none",
+			realTendencies: "historical",
 			giveMeWorstRoster: false,
 		};
 

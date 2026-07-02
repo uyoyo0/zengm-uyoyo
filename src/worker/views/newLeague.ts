@@ -231,6 +231,7 @@ export const getDefaultSettings = () => {
 		noStartingInjuries: false,
 		randomization: "none",
 		realStats: getDefaultRealStats(),
+		realTendencies: "historical",
 		hofFactor: unwrapGameAttribute(defaultGameAttributes, "hofFactor"),
 		injuries: defaultInjuries,
 		inflationAvg: unwrapGameAttribute(defaultGameAttributes, "inflationAvg"),

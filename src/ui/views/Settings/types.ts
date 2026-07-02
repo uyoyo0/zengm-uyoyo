@@ -85,6 +85,7 @@ export type Key =
 	| "realDraftRatings"
 	| "randomization"
 	| "realStats"
+	| "realTendencies"
 	| "hideDisabledTeams"
 	| "hofFactor"
 	| "injuries"

@@ -2,66 +2,38 @@ import { AnimatePresence, m } from "framer-motion";
 import { useState } from "react";
 import type { TeamCoaching } from "../../../common/types.ts";
 import { DEFAULT_COACHING } from "../../../common/constants.ts";
+import { COACHING } from "../../../common/coachingConstants.ts";
+import CoachDials from "../../components/CoachDials.tsx";
 import { HelpPopover } from "../../components/HelpPopover.tsx";
 import CollapseArrow from "../../components/CollapseArrow.tsx";
 import { helpers } from "../../util/helpers.ts";
 
 const titleText = "Coaching Style";
 
-// Each dial is a signed level in [-1, 1], 0 = neutral.
-const DIALS: {
-	key: keyof TeamCoaching;
-	label: string;
-	low: string;
-	high: string;
-}[] = [
-	{
-		key: "threePointTendency",
-		label: "Three-point volume",
-		low: "Fewer 3s",
-		high: "More 3s",
-	},
-	{ key: "pace", label: "Tempo", low: "Slow it down", high: "Push the pace" },
-	{
-		key: "crashOffensiveGlass",
-		label: "Offensive rebounding",
-		low: "Get back on D",
-		high: "Crash the glass",
-	},
-	{
-		key: "paintDefense",
-		label: "Defensive focus",
-		low: "Guard the perimeter",
-		high: "Pack the paint",
-	},
-	{
-		key: "defensiveAggression",
-		label: "Defensive aggression",
-		low: "Play it safe",
-		high: "Force turnovers",
-	},
-];
-
-const signedPct = (level: number, magnitude: number) => {
-	const pct = Math.round(level * magnitude);
+const signedPct = (level: number, strength: number) => {
+	const pct = Math.round(level * strength * 100);
 	return `${pct > 0 ? "+" : ""}${pct}%`;
 };
 
 // Plain-language summary of how the current (coach-set) dials change games.
+// Magnitudes come straight from the sim constants so retuning propagates here.
 const projectedEffects = (coaching: TeamCoaching): string[] => {
 	const effects: string[] = [];
 
 	if (coaching.threePointTendency !== 0) {
 		effects.push(
-			`${signedPct(coaching.threePointTendency, 40)} three-point attempt rate`,
+			`${signedPct(
+				coaching.threePointTendency,
+				COACHING.THREE_PT_TENDENCY,
+			)} three-point attempt rate`,
 		);
 	}
 	if (coaching.pace !== 0) {
 		const faster = coaching.pace > 0;
 		effects.push(
-			`${signedPct(coaching.pace, 12)} possessions · ${signedPct(
+			`${signedPct(coaching.pace, COACHING.PACE)} possessions · ${signedPct(
 				coaching.pace,
-				15,
+				COACHING.PACE_FATIGUE,
 			)} fatigue rate · injury risk ${faster ? "up" : "down"}`,
 		);
 	}
@@ -70,7 +42,7 @@ const projectedEffects = (coaching: TeamCoaching): string[] => {
 		effects.push(
 			`${signedPct(
 				coaching.crashOffensiveGlass,
-				40,
+				COACHING.CRASH_GLASS,
 			)} offensive-rebound rate · transition defense ${
 				crashing ? "more exposed" : "more protected"
 			}`,
@@ -78,19 +50,16 @@ const projectedEffects = (coaching: TeamCoaching): string[] => {
 	}
 	if (coaching.paintDefense !== 0) {
 		const mag = Math.abs(coaching.paintDefense);
+		const pushPct = Math.round(mag * COACHING.PAINT_PUSH_3S * 100);
+		const interiorPp = Math.round(mag * COACHING.PAINT_INTERIOR_DELTA * 100);
+		const threePp = Math.round(mag * COACHING.PAINT_THREE_DELTA * 100);
 		if (coaching.paintDefense > 0) {
 			effects.push(
-				`Pack the paint: ${signedPct(mag, 25)} opponent 3PA, −${Math.round(
-					mag * 5,
-				)} pp interior FG, +${Math.round(mag * 4)} pp opponent 3PT`,
+				`Pack the paint: +${pushPct}% opponent 3PA, −${interiorPp} pp interior FG, +${threePp} pp opponent 3PT`,
 			);
 		} else {
 			effects.push(
-				`Guard the perimeter: −${Math.round(
-					mag * 25,
-				)}% opponent 3PA, +${Math.round(
-					mag * 5,
-				)} pp interior FG, −${Math.round(mag * 4)} pp opponent 3PT`,
+				`Guard the perimeter: −${pushPct}% opponent 3PA, +${interiorPp} pp interior FG, −${threePp} pp opponent 3PT`,
 			);
 		}
 	}
@@ -98,10 +67,10 @@ const projectedEffects = (coaching: TeamCoaching): string[] => {
 		effects.push(
 			`${signedPct(
 				coaching.defensiveAggression,
-				40,
+				COACHING.AGGRESSION_TOV,
 			)} steals / blocks / forced turnovers · ${signedPct(
 				coaching.defensiveAggression,
-				30,
+				COACHING.AGGRESSION_FOUL,
 			)} fouls`,
 		);
 	}
@@ -111,9 +80,6 @@ const projectedEffects = (coaching: TeamCoaching): string[] => {
 	}
 	return effects;
 };
-
-const dialValue = (value: number) =>
-	value > 0 ? `+${value.toFixed(1)}` : value.toFixed(1);
 
 type CoachCard = {
 	cid: number;
@@ -195,21 +161,9 @@ const CoachingSettings = ({
 								</div>
 							</div>
 						) : null}
-						<table className="table table-sm mb-2">
-							<tbody>
-								{DIALS.map((dial) => (
-									<tr key={dial.key}>
-										<td className="p-1">{dial.label}</td>
-										<td className="p-1 text-end" style={{ width: 50 }}>
-											{dialValue(coaching[dial.key])}
-										</td>
-										<td className="p-1 text-body-secondary">
-											{coaching[dial.key] >= 0 ? dial.high : dial.low}
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
+						<div className="mb-2">
+							<CoachDials values={coaching} />
+						</div>
 						<div className="fw-bold mb-1">Projected impact</div>
 						<ul className="list-unstyled mb-0 small text-body-secondary">
 							{projectedEffects(coaching).map((effect, i) => (

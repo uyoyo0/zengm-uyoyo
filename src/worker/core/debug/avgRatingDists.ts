@@ -1,5 +1,6 @@
 import { draft, player } from "../index.ts";
 import { DEFAULT_LEVEL } from "../../../common/budgetLevels.ts";
+import { getNeutralCoachingLevel } from "../../../common/coachingConstants.ts";
 import { range } from "../../../common/utils.ts";
 
 const avgRatingDists = async (numPlayers: number = 100) => {
@@ -42,7 +43,7 @@ const avgRatingDists = async (numPlayers: number = 100) => {
 		}
 
 		for (let j = 0; j < NUM_SEASONS; j++) {
-			await player.develop(p, 1, false, DEFAULT_LEVEL, true);
+			await player.develop(p, 1, false, getNeutralCoachingLevel(), true);
 			p.born.year -= 1; // Aging after develop
 
 			for (const key of Object.keys(ratings[j])) {

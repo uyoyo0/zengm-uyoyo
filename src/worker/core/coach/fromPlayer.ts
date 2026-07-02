@@ -31,9 +31,16 @@ const fromPlayer = (p: Player): CoachWithoutKey => {
 		(p.awards?.length ?? 0) * 2 + (p.hof ? 8 : 0),
 	);
 
+	// Playing IQ informs coaching skill but shrunk toward average - a great
+	// basketball mind starts as a promising coach, not an automatic elite one
+	// (they can still grow into it via coach development).
 	const ratingsNoOvr = {
-		development: clampRating(0.5 * oiq + 0.5 * diq + gauss(0, 8)),
-		tactics: clampRating(0.55 * oiq + 0.45 * diq + gauss(0, 8)),
+		development: clampRating(
+			50 + 0.6 * (0.5 * oiq + 0.5 * diq - 50) + gauss(0, 8),
+		),
+		tactics: clampRating(
+			50 + 0.6 * (0.55 * oiq + 0.45 * diq - 50) + gauss(0, 8),
+		),
 		adaptability: clampRating(40 + 0.3 * oiq + gauss(0, 12)),
 		motivation: clampRating(45 + awardsBonus + gauss(0, 12)),
 	};

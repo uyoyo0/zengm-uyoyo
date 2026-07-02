@@ -254,6 +254,7 @@ const SettingsForm = ({
 	hasPlayers,
 	newLeague,
 	realPlayers,
+	crossEra,
 	saveText = "Save Settings",
 	initialSettings,
 	settingsShown,
@@ -270,6 +271,7 @@ const SettingsForm = ({
 	hasPlayers?: boolean;
 	newLeague?: boolean;
 	realPlayers?: boolean;
+	crossEra?: boolean;
 	saveText?: string;
 	initialSettings: Settings;
 	hideShortcuts?: boolean;
@@ -350,6 +352,7 @@ const SettingsForm = ({
 					hasPlayers,
 					newLeague,
 					realPlayers,
+					crossEra,
 				}))
 		);
 	});

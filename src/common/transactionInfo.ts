@@ -112,6 +112,26 @@ export const types: Partial<
 		text: "Tragic Death",
 		category: "rare",
 	},
+	coachHired: {
+		text: "Coach Hired",
+		category: "team",
+	},
+	coachFired: {
+		text: "Coach Fired",
+		category: "team",
+	},
+	coachRetired: {
+		text: "Coach Retired",
+		category: "team",
+	},
+	coachContract: {
+		text: "Coach Contract",
+		category: "team",
+	},
+	coachAward: {
+		text: "Coach Award",
+		category: "award",
+	},
 	teamContraction: {
 		text: "Contraction",
 		category: "team",

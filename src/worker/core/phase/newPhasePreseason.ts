@@ -12,7 +12,6 @@ import {
 	realRosters,
 	team,
 } from "../index.ts";
-import { DEFAULT_LEVEL } from "../../../common/budgetLevels.ts";
 import { idb } from "../../db/index.ts";
 import { g, helpers, local, logEvent, toUI } from "../../util/index.ts";
 import type {
@@ -250,14 +249,15 @@ const newPhasePreseason = async (
 	// Other sports keep using the team's coaching budget level.
 	const coachingLevels: Record<number, number> = {};
 	if (isSport("basketball")) {
-		await coach.autoHireFire(conditions);
+		await coach.processCoachMarket(conditions);
 		await coach.updateTeamCoaching();
 		const coaches = await idb.cache.coaches.getAll();
 		const developmentByTid = new Map(
 			coaches.map((c) => [c.tid, c.ratings.development]),
 		);
 		for (const t of teams) {
-			coachingLevels[t.tid] = developmentByTid.get(t.tid) ?? DEFAULT_LEVEL;
+			// Coachless team = neutral coach (dev 50), not the budget-level default.
+			coachingLevels[t.tid] = developmentByTid.get(t.tid) ?? 50;
 		}
 	} else {
 		for (const t of teams) {

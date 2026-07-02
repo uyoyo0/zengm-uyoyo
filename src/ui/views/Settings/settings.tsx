@@ -55,6 +55,7 @@ type Setting = {
 		hasPlayers?: boolean;
 		newLeague?: boolean;
 		realPlayers?: boolean;
+		crossEra?: boolean;
 	}) => boolean | undefined;
 	customForm?: (props: {
 		disabled: boolean;
@@ -94,6 +95,48 @@ export const settings: Setting[] = (
 				},
 				{ key: "all", value: "All seasons, teams, and players" },
 			],
+		},
+		{
+			category: "New League",
+			key: "realTendencies",
+			name: "Player Tendencies",
+			// Cross-era leagues always contain real players (their rosters are
+			// generated from real team-seasons), so the choice applies there too.
+			showOnlyIf: ({ newLeague, hasPlayers, realPlayers, crossEra }) =>
+				newLeague && ((hasPlayers && realPlayers) || crossEra),
+			type: "string",
+			values: [
+				{ key: "historical", value: "Historical, with variation" },
+				{ key: "historicalExact", value: "Historical, exact" },
+				{ key: "skill", value: "Skill-based" },
+			],
+			description:
+				"How players' behavioral tendencies (shot selection, usage, passing) are set.",
+			descriptionLong: (
+				<>
+					<p>
+						Behavioral tendencies control how a player plays, independent of
+						how good he is: how many threes he takes, how often he attacks the
+						rim or posts up, how ball-dominant he is, and how much he looks to
+						pass.
+					</p>
+					<p>
+						<b>Historical, with variation:</b> tendencies are derived from each
+						player's real career stats, with a little randomness so every
+						league plays out differently while players stay recognizably
+						themselves.
+					</p>
+					<p>
+						<b>Historical, exact:</b> the same, but deterministic - a player's
+						tendencies match his real career shot mix exactly, in every league.
+					</p>
+					<p>
+						<b>Skill-based:</b> tendencies follow ratings instead of history -
+						historical players are reinterpreted as modern players (e.g. a
+						great shooter from the 1980s will shoot threes at modern volume).
+					</p>
+				</>
+			),
 		},
 		...(REAL_PLAYERS_INFO
 			? ([

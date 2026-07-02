@@ -43,9 +43,12 @@ export const skillTendencyBases = (skills: Skills) => {
 	};
 };
 
-// Centered on 50, pulled toward the relevant skill(s), plus noise.
-const dial = (base: number, noise = 9) =>
-	helpers.bound(Math.round(base + realGauss(0, noise)), 0, 100);
+// Centered on 50, pulled toward the relevant skill(s), plus noise. Also reused
+// by real-player tendency derivation to add per-league variation.
+export const dial = (base: number, noise = 9) =>
+	noise > 0
+		? helpers.bound(Math.round(base + realGauss(0, noise)), 0, 100)
+		: helpers.bound(Math.round(base), 0, 100);
 
 // Behavioral tendencies correlated to a player's skills (a great shooter tends to
 // shoot more 3s; a big tends to post up), with noise so they're not identical to

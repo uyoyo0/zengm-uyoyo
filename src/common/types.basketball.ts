@@ -181,6 +181,10 @@ export type PlayerRatings = {
 	tendencyPost?: number; // posts up
 	tendencyPass?: number; // pass-first / playmaking
 	tendencyClutch?: number; // performs in late-game clutch situations
+	// True when the shot-mix tendencies were derived from real career stats and
+	// encode absolute shot shares; the sim then skips era scaling
+	// (threePointTendencyFactor) for this player.
+	tendencyAbsolute?: boolean;
 };
 
 export type TendencyKey =

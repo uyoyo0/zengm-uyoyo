@@ -8,6 +8,7 @@ const CustomizeSettings = ({
 	saveText,
 	hasPlayers,
 	realPlayers,
+	crossEra,
 }: {
 	onCancel: () => void;
 	onSave: (settings: Settings) => void;
@@ -15,6 +16,7 @@ const CustomizeSettings = ({
 	saveText: string;
 	hasPlayers: boolean;
 	realPlayers: boolean;
+	crossEra: boolean;
 }) => {
 	return (
 		<>
@@ -31,6 +33,7 @@ const CustomizeSettings = ({
 				newLeague
 				hasPlayers={hasPlayers}
 				realPlayers={realPlayers}
+				crossEra={crossEra}
 			/>
 		</>
 	);

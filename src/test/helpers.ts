@@ -84,6 +84,12 @@ export const resetCache = async (data?: Partial<Record<Store, any[]>>) => {
 		}
 	}
 
+	if (data.coaches) {
+		for (const obj of data.coaches) {
+			await idb.cache.coaches.add(obj);
+		}
+	}
+
 	if (data.teams) {
 		for (const obj of data.teams) {
 			await idb.cache.teams.add(obj);
