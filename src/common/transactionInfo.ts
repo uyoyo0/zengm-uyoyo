@@ -124,6 +124,10 @@ export const types: Partial<
 		text: "Coach Retired",
 		category: "team",
 	},
+	coachContract: {
+		text: "Coach Contract",
+		category: "team",
+	},
 	coachAward: {
 		text: "Coach Award",
 		category: "award",

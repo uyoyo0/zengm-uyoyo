@@ -841,6 +841,7 @@ export type LogEventType =
 	| "coachHired"
 	| "coachFired"
 	| "coachRetired"
+	| "coachContract"
 	| "coachAward"
 	| "draft"
 	| "draftLottery"
@@ -1546,6 +1547,8 @@ export type CoachWithoutKey = {
 	ratings: CoachRatings;
 	philosophy: TeamCoaching; // the coach's preferred style dials, [-1, 1]
 	hiredYear?: number;
+	// Most recent team, for free agents (loyalty discount on re-signing, display).
+	prevTid?: number;
 	fromPid?: number; // pid of the player this coach used to be, if any
 	awards: PlayerAward[];
 	// Per-season coaching record, appended at the end of each season.
@@ -1649,6 +1652,15 @@ export type Team = {
 	// User-set coaching style dials (basketball only). Each is a signed level in
 	// [-1, 1], 0 = neutral. Only honored for the user's team; AI stays neutral.
 	coaching?: TeamCoaching;
+
+	// Remaining salary owed to fired coaches (basketball only). Counts against
+	// the coaching expense line each season through exp, then is pruned.
+	deadCoachMoney?: {
+		cid: number;
+		name: string;
+		amountPerYear: number;
+		exp: number;
+	}[];
 
 	// Optional because no upgrade
 	autoTicketPrice?: boolean;

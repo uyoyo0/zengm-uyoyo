@@ -1,6 +1,7 @@
 import { PLAYER } from "../../common/constants.ts";
 import { idb } from "../db/index.ts";
 import { g } from "../util/index.ts";
+import { coachDemand } from "../core/coach/market.ts";
 import type { UpdateEvents } from "../../common/types.ts";
 
 const updateCoaches = async (inputs: unknown, updateEvents: UpdateEvents) => {
@@ -11,7 +12,22 @@ const updateCoaches = async (inputs: unknown, updateEvents: UpdateEvents) => {
 		updateEvents.includes("newPhase")
 	) {
 		const season = g.get("season");
+		const userTid = g.get("userTid");
 		const teams = await idb.cache.teams.getAll();
+
+		// The user team's last-season win% drives what coaches ask from them.
+		const userTs = await idb.cache.teamSeasons.indexGet(
+			"teamSeasonsByTidSeason",
+			[userTid, season - 1],
+		);
+		const userGp = userTs ? userTs.won + userTs.lost + (userTs.tied ?? 0) : 0;
+		const userWinp =
+			userGp > 0 ? (userTs!.won + 0.5 * (userTs!.tied ?? 0)) / userGp : 0.5;
+
+		const userTeam = teams.find((t) => t.tid === userTid);
+		const deadCoachMoney = (userTeam?.deadCoachMoney ?? []).filter(
+			(d) => d.exp >= season,
+		);
 		const teamInfo = new Map(
 			teams.map((t) => [
 				t.tid,
@@ -39,6 +55,15 @@ const updateCoaches = async (inputs: unknown, updateEvents: UpdateEvents) => {
 					}
 				}
 
+				// What this coach would ask from the user's team: free agents always,
+				// plus the user's own coach when extension-eligible (final year).
+				const negotiable =
+					c.tid === PLAYER.FREE_AGENT ||
+					(c.tid === userTid && c.contract.exp <= season);
+				const demand = negotiable
+					? coachDemand(c, userTid, userWinp)
+					: undefined;
+
 				return {
 					cid: c.cid,
 					firstName: c.firstName,
@@ -56,6 +81,12 @@ const updateCoaches = async (inputs: unknown, updateEvents: UpdateEvents) => {
 					numAwards: c.awards.length,
 					won,
 					expectedWins,
+					prevTid: c.prevTid,
+					prevAbbrev:
+						c.prevTid !== undefined
+							? teamInfo.get(c.prevTid)?.abbrev
+							: undefined,
+					demand,
 				};
 			}),
 		);
@@ -76,7 +107,8 @@ const updateCoaches = async (inputs: unknown, updateEvents: UpdateEvents) => {
 
 		return {
 			coaches,
-			userTid: g.get("userTid"),
+			deadCoachMoney,
+			userTid,
 			userTids: g.get("userTids"),
 			freeAgent: PLAYER.FREE_AGENT,
 			godMode: g.get("godMode"),

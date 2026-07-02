@@ -78,6 +78,7 @@ import {
 	type NonEmptyArray,
 	type TeamCoaching,
 	type Coach,
+	type PlayerContract,
 	RealPlayerPhotosSchema,
 	RealTeamInfoSchema,
 } from "../../common/types.ts";
@@ -4202,6 +4203,83 @@ const fireCoach = async ({ tid }: { tid: number }, conditions: Conditions) => {
 	await toUI("realtimeUpdate", [["playerMovement", "team"]]);
 };
 
+// Offer a contract to a free-agent coach, or an extension to the user's own
+// coach in the final year of their deal. Acceptance is deterministic: the
+// coach accepts any offer at or above their asking price with an acceptable
+// length; a rejection returns the demand so the UI can show it.
+const negotiateCoachContract = async (
+	{
+		cid,
+		tid,
+		amount,
+		exp,
+	}: { cid: number; tid: number; amount: number; exp: number },
+	conditions: Conditions,
+): Promise<
+	| { accepted: true }
+	| { accepted: false; errorMessage?: string; demand?: PlayerContract }
+> => {
+	if (!g.get("userTids").includes(tid) || g.get("spectator")) {
+		return { accepted: false, errorMessage: "Not your team." };
+	}
+	const c = await idb.cache.coaches.get(cid);
+	if (!c) {
+		return { accepted: false, errorMessage: "Coach not found." };
+	}
+
+	const season = g.get("season");
+	const isFreeAgent = c.tid === PLAYER.FREE_AGENT;
+	const isOwnExpiring = c.tid === tid && c.contract.exp <= season;
+	if (!isFreeAgent && !isOwnExpiring) {
+		return {
+			accepted: false,
+			errorMessage:
+				"You can only negotiate with free agents or your own coach in the final year of their contract.",
+		};
+	}
+
+	const ts = await idb.cache.teamSeasons.indexGet("teamSeasonsByTidSeason", [
+		tid,
+		season - 1,
+	]);
+	const gp = ts ? ts.won + ts.lost + (ts.tied ?? 0) : 0;
+	const winp = gp > 0 ? (ts!.won + 0.5 * (ts!.tied ?? 0)) / gp : 0.5;
+	const demand = coach.coachDemand(c, tid, winp);
+
+	const years = exp - season;
+	const minYears = c.ratings.ovr >= 60 ? 2 : 1;
+	if (
+		amount >= demand.amount &&
+		years >= minYears &&
+		years <= 5 &&
+		Number.isFinite(amount) &&
+		amount > 0
+	) {
+		const contract = { amount: Math.round(amount / 50) * 50, exp };
+		if (isFreeAgent) {
+			await coach.hire(cid, tid, { contract, conditions });
+		} else {
+			c.contract = contract;
+			await idb.cache.coaches.put(c);
+			const t = await idb.cache.teams.get(tid);
+			await logEvent(
+				{
+					type: "coachContract",
+					text: `${c.firstName} ${c.lastName} signed a contract extension with the ${t?.region} ${t?.name} (${helpers.formatCurrency(contract.amount / 1000, "M")}/year through ${contract.exp}).`,
+					tids: [tid],
+					showNotification: false,
+					score: 10,
+				},
+				conditions,
+			);
+		}
+		await toUI("realtimeUpdate", [["playerMovement", "team"]]);
+		return { accepted: true };
+	}
+
+	return { accepted: false, demand };
+};
+
 const updateCoach = async (updates: {
 	cid: number;
 	firstName?: string;
@@ -5393,6 +5471,7 @@ export default {
 		updateCoach,
 		hireCoach,
 		fireCoach,
+		negotiateCoachContract,
 		updatePlayThroughInjuries,
 		updatePlayerWatch,
 		updatePlayersWatch,

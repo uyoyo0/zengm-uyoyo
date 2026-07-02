@@ -7,7 +7,12 @@ import ensureCoaches from "./ensureCoaches.ts";
 import updateTeamCoaching from "./updateTeamCoaching.ts";
 import hire from "./hire.ts";
 import fire from "./fire.ts";
-import autoHireFire from "./autoHireFire.ts";
+import processCoachMarket, {
+	coachDemand,
+	philosophyFit,
+	scoreCandidate,
+} from "./market.ts";
+import developCoach from "./develop.ts";
 import { availabilityAdjust, matchupAdjust, opponentProfile } from "./style.ts";
 
 export default {
@@ -20,7 +25,11 @@ export default {
 	updateTeamCoaching,
 	hire,
 	fire,
-	autoHireFire,
+	processCoachMarket,
+	coachDemand,
+	philosophyFit,
+	scoreCandidate,
+	developCoach,
 	availabilityAdjust,
 	matchupAdjust,
 	opponentProfile,
