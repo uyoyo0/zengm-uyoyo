@@ -8,10 +8,6 @@ const DIAL_KEYS = Object.keys(DEFAULT_COACHING) as (keyof TeamCoaching)[];
 
 const round1 = (x: number) => Math.round(helpers.bound(x, -1, 1) * 10) / 10;
 
-// Map a 0-100-ish rating average to a signed [-1, 1] signal centered on 50.
-const toSignal = (v: number, scale = 1) =>
-	helpers.bound(((v - 50) / 25) * scale, -1, 1);
-
 const avg = (xs: number[]) =>
 	xs.length === 0 ? 50 : xs.reduce((a, b) => a + b, 0) / xs.length;
 
@@ -22,7 +18,11 @@ const topRatings = (players: Player[]) =>
 		.slice(0, 8)
 		.map((p) => last(p.ratings) as any);
 
-// The style that best fits a roster's strengths.
+// The style that best fits a roster's strengths. Signals are centered on the
+// roster's own average across the involved ratings, so they express
+// comparative advantage ("we shoot better than we do anything else") rather
+// than absolute rating level - otherwise below-average rosters get told to do
+// less of everything, and every dial drifts negative league-wide.
 export const rosterOptimalStyle = (players: Player[]): TeamCoaching => {
 	const top = topRatings(players);
 	if (top.length === 0) {
@@ -37,13 +37,18 @@ export const rosterOptimalStyle = (players: Player[]): TeamCoaching => {
 	const hgt = m("hgt");
 	const diq = m("diq");
 
+	const ref = (tp + spd + dnk + reb + hgt + diq) / 6;
+	const signal = (v: number, scale: number) =>
+		helpers.bound(((v - ref) / 25) * scale, -1, 1);
+
 	return {
-		threePointTendency: round1(toSignal(tp, 0.8)),
-		pace: round1(toSignal((spd + dnk) / 2, 0.8)),
-		crashOffensiveGlass: round1(toSignal((reb + hgt) / 2, 0.6)),
-		// Tall/high-IQ interior teams pack the paint; quick teams guard the perimeter.
+		threePointTendency: round1(signal(tp, 0.8)),
+		pace: round1(signal((spd + dnk) / 2, 0.8)),
+		crashOffensiveGlass: round1(signal((reb + hgt) / 2, 0.6)),
+		// Tall/high-IQ interior teams pack the paint; quick teams guard the
+		// perimeter. Already relative (a within-roster difference).
 		paintDefense: round1((((hgt + diq) / 2 - spd) / 25) * 0.8),
-		defensiveAggression: round1(toSignal((diq + spd) / 2, 0.6)),
+		defensiveAggression: round1(signal((diq + spd) / 2, 0.6)),
 	};
 };
 
@@ -69,14 +74,28 @@ export type OpponentProfile = {
 };
 
 // A normalized [-1, 1] read on what the opponent does well, used for scouting.
+// Centered on the opponent's own average (comparative strengths), matching
+// rosterOptimalStyle - absolute centering biased every profile negative.
 export const opponentProfile = (players: Player[]): OpponentProfile => {
 	const top = topRatings(players);
 	const m = (key: string) => avg(top.map((r) => r[key] ?? 50));
+
+	const tp = m("tp");
+	const ins = m("ins");
+	const dnk = m("dnk");
+	const hgt = m("hgt");
+	const drb = m("drb");
+	const pss = m("pss");
+	const reb = m("reb");
+
+	const ref = (tp + ins + dnk + hgt + drb + pss + reb) / 7;
+	const signal = (v: number) => helpers.bound((v - ref) / 25, -1, 1);
+
 	return {
-		threeReliance: toSignal(m("tp")),
-		interiorReliance: toSignal((m("ins") + m("dnk") + m("hgt")) / 3),
-		ballHandling: toSignal((m("drb") + m("pss")) / 2),
-		defReb: toSignal((m("reb") + m("hgt")) / 2),
+		threeReliance: signal(tp),
+		interiorReliance: signal((ins + dnk + hgt) / 3),
+		ballHandling: signal((drb + pss) / 2),
+		defReb: signal((reb + hgt) / 2),
 	};
 };
 
