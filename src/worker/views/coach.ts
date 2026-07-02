@@ -37,11 +37,16 @@ const updateCoach = async (
 
 		let team;
 		let teamCoaching;
+		let teamColors: [string, string, string] | undefined;
+		let teamJersey: string | undefined;
 		if (coach.tid >= 0) {
 			const t = teamInfo.get(coach.tid);
 			if (t) {
 				team = { tid: coach.tid, ...t };
-				teamCoaching = allTeams.find((x) => x.tid === coach.tid)?.coaching;
+				const fullTeam = allTeams.find((x) => x.tid === coach.tid);
+				teamCoaching = fullTeam?.coaching;
+				teamColors = fullTeam?.colors;
+				teamJersey = fullTeam?.jersey;
 			}
 		}
 
@@ -69,6 +74,8 @@ const updateCoach = async (
 			career,
 			team,
 			teamCoaching,
+			teamColors,
+			teamJersey,
 			godMode: g.get("godMode"),
 			season: g.get("season"),
 		};
