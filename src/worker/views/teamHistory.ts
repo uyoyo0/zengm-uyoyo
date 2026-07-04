@@ -11,6 +11,7 @@ import { bySport } from "../../common/sportFunctions.ts";
 import addFirstNameShort from "../util/addFirstNameShort.ts";
 import { groupByUnique } from "../../common/utils.ts";
 import { getPlayoffsByConfBySeason } from "./frivolitiesTeamSeasons.ts";
+import { getAllCoaches } from "./coachCareer.ts";
 
 type PlayoffsByConfBySeason = Awaited<
 	ReturnType<typeof getPlayoffsByConfBySeason>
@@ -38,6 +39,12 @@ export const getHistoryTeam = (
 		tid: number;
 		abbrev: string;
 		note?: string;
+		// Filled in by updateTeamHistory; absent for seasons predating coaches.
+		coach?: {
+			cid: number;
+			firstName: string;
+			lastName: string;
+		};
 	}[] = [];
 
 	let totalWon = 0;
@@ -326,6 +333,72 @@ const updateTeamHistory = async (
 			playoffsByConfBySeason,
 		);
 
+		// Coaches who coached this franchise: a career-with-team summary for each,
+		// plus a season -> coach lookup for the season-by-season list.
+		const franchiseCoaches = (await getAllCoaches())
+			.map((c) => ({
+				coach: c,
+				teamSeasons: (c.seasons ?? []).filter((s) => s.tid === inputs.tid),
+			}))
+			.filter(({ teamSeasons }) => teamSeasons.length > 0);
+
+		const coachBySeason = new Map<
+			number,
+			{ cid: number; firstName: string; lastName: string }
+		>();
+		for (const { coach: c, teamSeasons: seasons } of franchiseCoaches) {
+			for (const s of seasons) {
+				coachBySeason.set(s.season, {
+					cid: c.cid,
+					firstName: c.firstName,
+					lastName: c.lastName,
+				});
+			}
+		}
+		for (const row of history.history) {
+			row.coach = coachBySeason.get(row.season);
+		}
+
+		const coaches = franchiseCoaches
+			.map(({ coach: c, teamSeasons: seasons }) => {
+				let won = 0;
+				let lost = 0;
+				let playoffWon = 0;
+				let playoffLost = 0;
+				let championships = 0;
+				let lastSeason = -Infinity;
+				for (const s of seasons) {
+					won += s.won;
+					lost += s.lost;
+					playoffWon += s.playoffWon ?? 0;
+					playoffLost += s.playoffLost ?? 0;
+					if (s.champion) {
+						championships += 1;
+					}
+					if (s.season > lastSeason) {
+						lastSeason = s.season;
+					}
+				}
+				const gp = won + lost;
+
+				return {
+					cid: c.cid,
+					firstName: c.firstName,
+					lastName: c.lastName,
+					hof: c.hof,
+					active: c.tid === inputs.tid,
+					numSeasons: seasons.length,
+					won,
+					lost,
+					winp: gp > 0 ? won / gp : 0,
+					playoffWon,
+					playoffLost,
+					championships,
+					lastSeason,
+				};
+			})
+			.sort((a, b) => b.won - a.won);
+
 		const playersByPid = groupByUnique(history.players, "pid");
 		const retiredJerseyNumbers2 = retiredJerseyNumbers.map((row) => {
 			let numRings = 0;
@@ -354,6 +427,7 @@ const updateTeamHistory = async (
 			abbrev: inputs.abbrev,
 			tid: inputs.tid,
 			retiredJerseyNumbers: retiredJerseyNumbers2,
+			coaches,
 		};
 	}
 };

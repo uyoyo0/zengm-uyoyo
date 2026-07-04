@@ -68,6 +68,7 @@ const Coach = ({
 	const coyCount = coach.awards.filter(
 		(a) => a.type === "Coach of the Year",
 	).length;
+	const champCount = career.championships;
 
 	// Year-over-year rating changes from the two most recent history snapshots.
 	const history = [...(coach.ratingsHistory ?? [])].sort(
@@ -100,6 +101,22 @@ const Coach = ({
 					<div>
 						<h2 className="d-flex align-items-center gap-2 flex-wrap">
 							Overview
+							{coach.hof ? (
+								<span
+									className="badge text-bg-primary"
+									title="Inducted into the Hall of Fame"
+								>
+									HOF
+								</span>
+							) : null}
+							{champCount > 0 ? (
+								<span
+									className="badge text-bg-success"
+									title="Championships won"
+								>
+									{champCount}× Champ
+								</span>
+							) : null}
 							{coyCount > 0 ? (
 								<span
 									className="badge text-bg-warning"
@@ -109,7 +126,12 @@ const Coach = ({
 								</span>
 							) : null}
 							{retired ? (
-								<span className="badge text-bg-secondary">Retired</span>
+								<span className="badge text-bg-secondary">
+									Retired
+									{coach.retiredYear !== undefined
+										? ` ${coach.retiredYear}`
+										: ""}
+								</span>
 							) : null}
 						</h2>
 						<p>
@@ -215,11 +237,15 @@ const Coach = ({
 											Exp W
 										</th>
 										<th title="Wins above expectation">Δ</th>
+										<th title="Playoff record">Playoffs</th>
 									</tr>
 								</thead>
 								<tbody>
 									{seasons.map((s) => (
-										<tr key={s.season}>
+										<tr
+											key={s.season}
+											className={s.champion ? "fw-bold" : undefined}
+										>
 											<td>
 												<a href={helpers.leagueUrl(["history", s.season])}>
 													{s.season}
@@ -250,6 +276,15 @@ const Coach = ({
 											>
 												{fmtDelta(s.delta)}
 											</td>
+											<td>
+												{s.champion ? (
+													<span title="Won championship">🏆 </span>
+												) : null}
+												{s.playoffWon !== undefined &&
+												(s.playoffRoundsWon ?? -1) >= 0
+													? `${s.playoffWon}-${s.playoffLost}`
+													: ""}
+											</td>
 										</tr>
 									))}
 								</tbody>
@@ -261,6 +296,12 @@ const Coach = ({
 										<td>{career.lost}</td>
 										<td>{career.expectedWins.toFixed(1)}</td>
 										<td>{fmtDelta(career.won - career.expectedWins)}</td>
+										<td>
+											{career.championships > 0
+												? `🏆×${career.championships} `
+												: ""}
+											{career.playoffWon}-{career.playoffLost}
+										</td>
 									</tr>
 								</tfoot>
 							</table>

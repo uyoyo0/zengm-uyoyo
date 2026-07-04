@@ -393,6 +393,206 @@ const updatePlayers = async (
 			filter = (p) =>
 				p.awards.every((award) => award.type !== "Most Valuable Player");
 			getValue = playerValue;
+		} else if (type === "rings") {
+			title = "Most Rings";
+			description =
+				"These are the players who won the most championships (minimum 2).";
+			extraCols.push({
+				key: ["most", "value"],
+				colName: "Titles",
+			});
+
+			getValue = (p) => {
+				const value = p.awards.filter(
+					(award) => award.type === "Won Championship",
+				).length;
+				if (value <= 1) {
+					return;
+				}
+				return { value };
+			};
+		} else if (type === "clutch") {
+			title = "Most Clutch";
+			description =
+				"These are the players who scored the most career clutch points (points in the last two minutes of games within 5).";
+			extraCols.push({
+				key: ["most", "value"],
+				colName: "stat:clutchPts",
+			});
+
+			getValue = (p) => {
+				let sum = 0;
+				for (const ps of p.stats) {
+					sum += (ps as any).clutchPts ?? 0;
+				}
+				if (sum === 0) {
+					return;
+				}
+				return { value: Math.round(sum) };
+			};
+		} else if (type === "playoff_legends") {
+			title = "Playoff Legends";
+			description =
+				"These are the players with the most valuable playoff careers.";
+
+			filter = (p) => p.stats.some((ps) => ps.playoffs && ps.gp > 0);
+			getValue = (p) => {
+				let sum = 0;
+				for (const ps of p.stats) {
+					if (ps.playoffs) {
+						sum += getValueStatsRow(ps);
+					}
+				}
+				return { value: sum };
+			};
+		} else if (type === "cut_short") {
+			title = "Best Careers Cut Short";
+			description =
+				"These are the players with the highest peak ovr whose careers lasted 5 seasons or fewer. What could have been.";
+			if (g.get("challengeNoRatings")) {
+				description += challengeNoRatingsText;
+			}
+			extraCols.push(
+				{
+					key: ["most", "extra", "numSeasons"],
+					colName: "# Seasons",
+				},
+				{
+					key: ["most", "extra", "age"],
+					colName: "Age",
+				},
+			);
+
+			filter = (p) => {
+				if (p.retiredYear === Infinity || p.stats.length === 0) {
+					return false;
+				}
+				const seasons = new Set(
+					p.stats.filter((ps) => !ps.playoffs && ps.gp > 0).map(
+						(ps) => ps.season,
+					),
+				);
+				return seasons.size > 0 && seasons.size <= 5;
+			};
+			getValue = (p) => {
+				let maxOvr = -Infinity;
+				let peakSeason: number | undefined;
+				for (const ratings of p.ratings) {
+					const ovr = player.fuzzRating(ratings.ovr, ratings.fuzz);
+					if (ovr > maxOvr) {
+						maxOvr = ovr;
+						peakSeason = ratings.season;
+					}
+				}
+				if (peakSeason === undefined) {
+					return;
+				}
+				const numSeasons = new Set(
+					p.stats.filter((ps) => !ps.playoffs && ps.gp > 0).map(
+						(ps) => ps.season,
+					),
+				).size;
+				return {
+					value: maxOvr,
+					extra: {
+						numSeasons,
+						age: p.retiredYear - p.born.year,
+						bestSeasonOverride: peakSeason,
+					},
+				};
+			};
+		} else if (type === "iron_man") {
+			title = "Iron Men";
+			description =
+				"These are the players who played the most career games without ever getting injured.";
+			extraCols.push({
+				key: ["most", "value"],
+				colName: "stat:gp",
+			});
+
+			filter = (p) => p.injuries.length === 0;
+			getValue = (p) => {
+				let sum = 0;
+				for (const ps of p.stats) {
+					if (!ps.playoffs) {
+						sum += ps.gp;
+					}
+				}
+				if (sum === 0) {
+					return;
+				}
+				return { value: sum };
+			};
+		} else if (type === "late_bloomers") {
+			title = "Late Bloomers";
+			description =
+				"These are the players who were the oldest when they made their first All-Star appearance.";
+			extraCols.push(
+				{
+					key: ["most", "value"],
+					colName: "Age",
+				},
+				{
+					key: ["most", "extra"],
+					colName: "Team",
+				},
+			);
+
+			filter = (p) => p.awards.some((award) => award.type === "All-Star");
+			getValue = (p) => {
+				const firstAllStar = p.awards
+					.filter((award) => award.type === "All-Star")
+					.reduce((min, award) => (award.season < min.season ? award : min));
+				const season = firstAllStar.season;
+				const tid = p.stats.findLast((row) => row.season === season)?.tid;
+				if (tid === undefined) {
+					return;
+				}
+				return {
+					value: season - p.born.year,
+					extra: {
+						bestSeasonOverride: season,
+						season,
+						tid,
+					},
+				};
+			};
+			after = tidAndSeasonToAbbrev;
+		} else if (type === "good_stats_bad_team") {
+			title = "Good Stats, Bad Teams";
+			description =
+				"These are the players who produced the most career value while stuck on teams with a sub-.400 record.";
+
+			// (tid, season) -> regular season win% for every team season ever.
+			const winpByTidSeason = new Map<string, number>();
+			for await (const cursor of idb.league.transaction("teamSeasons")
+				.store) {
+				const ts = cursor.value;
+				const gp = helpers.getTeamSeasonGp(ts);
+				if (gp > 0) {
+					winpByTidSeason.set(
+						`${ts.tid}-${ts.season}`,
+						helpers.calcWinp(ts),
+					);
+				}
+			}
+
+			getValue = (p) => {
+				let sum = 0;
+				for (const ps of p.stats) {
+					if (ps.playoffs) {
+						continue;
+					}
+					const winp = winpByTidSeason.get(`${ps.tid}-${ps.season}`);
+					if (winp !== undefined && winp < 0.4) {
+						sum += getValueStatsRow(ps);
+					}
+				}
+				if (sum === 0) {
+					return;
+				}
+				return { value: sum };
+			};
 		} else if (type === "progs") {
 			title = "Best Progs";
 			description =

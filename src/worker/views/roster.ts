@@ -4,11 +4,13 @@ import { idb } from "../db/index.ts";
 import { g, helpers } from "../util/index.ts";
 import type {
 	Player,
+	TeamCoaching,
 	UpdateEvents,
 	ViewInput,
 	TeamSeasonAttr,
 } from "../../common/types.ts";
 import { addMood } from "./freeAgents.ts";
+import { getAllCoaches } from "./coachCareer.ts";
 import addFirstNameShort from "../util/addFirstNameShort.ts";
 import { getActualPlayThroughInjuries } from "../core/game/loadTeams.ts";
 import { bySport, isSport } from "../../common/sportFunctions.ts";
@@ -344,21 +346,50 @@ const updateRoster = async (
 		}
 
 		let coach;
-		if (isSport("basketball") && inputs.season === g.get("season")) {
-			const coaches = await idb.cache.coaches.indexGetAll(
-				"coachesByTid",
-				inputs.tid,
-			);
-			const c = coaches[0];
-			if (c) {
-				coach = {
-					cid: c.cid,
-					firstName: c.firstName,
-					lastName: c.lastName,
-					age: g.get("season") - c.born.year,
-					ratings: c.ratings,
-					contract: c.contract,
-				};
+		if (isSport("basketball")) {
+			if (inputs.season === g.get("season")) {
+				const coaches = await idb.cache.coaches.indexGetAll(
+					"coachesByTid",
+					inputs.tid,
+				);
+				const c = coaches[0];
+				if (c) {
+					coach = {
+						cid: c.cid,
+						firstName: c.firstName,
+						lastName: c.lastName,
+						age: g.get("season") - c.born.year,
+						ratings: c.ratings,
+						contract: c.contract,
+						// Current season uses the live team.coaching dials instead.
+						style: undefined as TeamCoaching | undefined,
+					};
+				}
+			} else {
+				// Who coached this team in the season being viewed, and their style
+				// that season (dial snapshot when available, else their philosophy).
+				const c = (await getAllCoaches()).find((c) =>
+					c.seasons?.some(
+						(s) => s.season === inputs.season && s.tid === inputs.tid,
+					),
+				);
+				if (c) {
+					const seasonRow = c.seasons!.find(
+						(s) => s.season === inputs.season && s.tid === inputs.tid,
+					)!;
+					const ratingsRow = c.ratingsHistory?.find(
+						(r) => r.season === inputs.season,
+					);
+					coach = {
+						cid: c.cid,
+						firstName: c.firstName,
+						lastName: c.lastName,
+						age: inputs.season - c.born.year,
+						ratings: ratingsRow ?? c.ratings,
+						contract: undefined,
+						style: seasonRow.coaching ?? c.philosophy,
+					};
+				}
 			}
 		}
 

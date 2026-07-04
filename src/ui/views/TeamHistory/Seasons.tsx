@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { RecordAndPlayoffs } from "../../components/RecordAndPlayoffs.tsx";
+import { helpers } from "../../util/helpers.ts";
 import type { View } from "../../../common/types.ts";
 import { useState } from "react";
 
@@ -62,6 +63,19 @@ const Seasons = ({ history }: Pick<View<"teamHistory">, "history">) => {
 					<h4 className={i > 0 ? "mt-2" : undefined}>{newName}</h4>
 				) : null}
 				{recordAndPlayoffs}
+				{h.coach ? (
+					<span className="text-body-secondary">
+						{" "}
+						·{" "}
+						<a
+							className="text-body-secondary"
+							href={helpers.leagueUrl(["coach", String(h.coach.cid)])}
+							title={`Coach: ${h.coach.firstName} ${h.coach.lastName}`}
+						>
+							{h.coach.firstName.charAt(0)}. {h.coach.lastName}
+						</a>
+					</span>
+				) : null}
 				<ExpandableNote note={h.note} />
 			</div>
 		);

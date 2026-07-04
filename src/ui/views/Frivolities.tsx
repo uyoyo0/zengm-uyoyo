@@ -11,7 +11,13 @@ import { isSport } from "../../common/sportFunctions.ts";
 
 const style = { maxWidth: 1000 };
 
-export const frivolities = {
+type Frivolity = {
+	urlParts: string[];
+	name: string;
+	description: string;
+};
+
+export const frivolities: Record<string, Frivolity[]> = {
 	Draft: [
 		{
 			urlParts: ["draft_position"],
@@ -127,7 +133,105 @@ export const frivolities = {
 				"Trades where one team's assets produced a lot more value than the other.",
 		},
 	],
+	...(isSport("basketball")
+		? {
+				Lineups: [
+					{
+						urlParts: ["lineups", "best"],
+						name: "Best Lineups",
+						description:
+							"The 5-man units with the highest single-season net rating.",
+					},
+					{
+						urlParts: ["lineups", "duos"],
+						name: "Best Duos",
+						description:
+							"The two-man combos with the highest career net rating together.",
+					},
+					{
+						urlParts: ["lineups", "duos_minutes"],
+						name: "Most Minutes Together",
+						description:
+							"The two-man combos who spent the most career minutes on the floor together.",
+					},
+					{
+						urlParts: ["lineups", "most_used"],
+						name: "Most Used Lineups",
+						description:
+							"The 5-man units that played the most minutes together in a season.",
+					},
+					{
+						urlParts: ["lineups", "on_off"],
+						name: "On/Off Kings",
+						description:
+							"The biggest gaps between a team's net rating with a player on vs off the floor.",
+					},
+					{
+						urlParts: ["lineups", "worst"],
+						name: "Worst Lineups",
+						description:
+							"The 5-man units with the worst single-season net rating.",
+					},
+				],
+				Coaches: [
+					{
+						urlParts: ["coaches", "best_seasons"],
+						name: "Best Coaching Seasons",
+						description:
+							"The single seasons where a coach most outperformed the roster's expected wins.",
+					},
+					{
+						urlParts: ["coaches", "no_ring"],
+						name: "Best Coaches Without a Ring",
+						description:
+							"The winningest coaches who never won a championship.",
+					},
+					{
+						urlParts: ["coaches", "ex_players"],
+						name: "Ex-Player Coaches",
+						description:
+							"Former players who went on to the best coaching careers.",
+					},
+					{
+						urlParts: ["coaches", "journeymen"],
+						name: "Journeymen",
+						description:
+							"Coaches who worked the sidelines for the most teams.",
+					},
+					{
+						urlParts: ["coaches", "lifers"],
+						name: "Lifers",
+						description:
+							"Coaches with the most seasons coaching a single team.",
+					},
+					{
+						urlParts: ["coaches", "overachievers"],
+						name: "Miracle Workers",
+						description:
+							"Coaches whose teams won the most games above their talent-based expectation.",
+					},
+					{
+						urlParts: ["coaches", "underachievers"],
+						name: "Underachievers",
+						description:
+							"Coaches whose teams fell furthest short of their talent-based expectation.",
+					},
+					{
+						urlParts: ["coaches", "worst_seasons"],
+						name: "Worst Coaching Seasons",
+						description:
+							"The single seasons where a coach most underperformed the roster's expected wins.",
+					},
+				],
+			}
+		: {}),
 	"Player Rankings": [
+		{
+			urlParts: ["most", "cut_short"],
+			name: "Best Careers Cut Short",
+			description:
+				"The highest peaks from careers that lasted 5 seasons or fewer.",
+		},
 		{
 			urlParts: ["most", "no_ring"],
 			name: "Best Players Without a Ring",
@@ -171,6 +275,12 @@ export const frivolities = {
 				"Define your own formula to rank the greatest seasons of all time.",
 		},
 		{
+			urlParts: ["most", "good_stats_bad_team"],
+			name: "Good Stats, Bad Teams",
+			description:
+				"The players who produced the most while stuck on sub-.400 teams.",
+		},
+		{
 			urlParts: ["most", "hall_of_good"],
 			name: "Hall of Good",
 			description: "The best retired players who didn't make the Hall of Fame.",
@@ -182,6 +292,27 @@ export const frivolities = {
 						name: "Hall of Shame",
 						description:
 							"Worst players who actually got some playing time to show how bad they are.",
+					},
+				]
+			: []),
+		{
+			urlParts: ["most", "iron_man"],
+			name: "Iron Men",
+			description:
+				"The players who played the most career games without ever getting injured.",
+		},
+		{
+			urlParts: ["most", "late_bloomers"],
+			name: "Late Bloomers",
+			description: "The oldest players to make their first All-Star team.",
+		},
+		...(isSport("basketball")
+			? [
+					{
+						urlParts: ["most", "clutch"],
+						name: "Most Clutch",
+						description:
+							"The players who scored the most career clutch points.",
 					},
 				]
 			: []),
@@ -201,6 +332,11 @@ export const frivolities = {
 			name: "Most Retired Jersey Numbers",
 			description:
 				"See the players who have the most different jerseys retired.",
+		},
+		{
+			urlParts: ["most", "rings"],
+			name: "Most Rings",
+			description: "The players who won the most championships.",
 		},
 		{
 			urlParts: ["most", "teams"],
@@ -238,6 +374,11 @@ export const frivolities = {
 			urlParts: ["most", "oldest_peaks"],
 			name: "Oldest Peaks",
 			description: "The players who were the oldest when they peaked in ovr.",
+		},
+		{
+			urlParts: ["most", "playoff_legends"],
+			name: "Playoff Legends",
+			description: "The players with the most valuable playoff careers.",
 		},
 		{
 			urlParts: ["most", "youngest_mvp"],
@@ -291,7 +432,10 @@ const Frivolities = () => {
 
 	const columns: (keyof typeof frivolities)[][] = [
 		["Draft", "Player Bios", "Teams", "Trades"],
-		["Player Rankings"],
+		[
+			...(isSport("basketball") ? ["Coaches", "Lineups"] : []),
+			"Player Rankings",
+		],
 	];
 
 	return (
@@ -319,7 +463,7 @@ const Frivolities = () => {
 							<Fragment key={category}>
 								<h3 className={`ms-1${i > 0 ? " mt-3" : ""}`}>{category}</h3>
 								<div className="list-group">
-									{frivolities[category].map((frivolity) => (
+									{(frivolities[category] ?? []).map((frivolity) => (
 										<a
 											key={frivolity.name}
 											href={helpers.leagueUrl([

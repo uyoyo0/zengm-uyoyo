@@ -15,6 +15,7 @@ import type {
 	Game,
 	PlayerFiltered,
 } from "../../../common/types.ts";
+import getPlayoffRecords from "./getPlayoffRecords.ts";
 import type {
 	AwardPlayer,
 	AwardPlayerClutch,
@@ -416,13 +417,18 @@ const getExpectedWins = async (t: AwardTeamSeason, season: number) => {
 };
 
 // Append each coached team's record for this season onto the coach, so coach
-// profiles can show a career history (wins vs expected wins).
+// profiles can show a career history (wins vs expected wins), playoff results,
+// and championships.
 const recordCoachSeasons = async (teams: AwardTeamSeason[]) => {
 	const season = g.get("season");
 	const coaches = await idb.cache.coaches.getAll();
 	const coachByTid = new Map(
 		coaches.filter((c) => c.tid >= 0).map((c) => [c.tid, c]),
 	);
+
+	const playoffSeries = await idb.cache.playoffSeries.get(season);
+	const playoffRecords = getPlayoffRecords(playoffSeries?.series);
+	const numPlayoffRounds = g.get("numGamesPlayoffSeries", season).length;
 
 	for (const t of teams) {
 		const coach = coachByTid.get(t.tid);
@@ -438,13 +444,32 @@ const recordCoachSeasons = async (teams: AwardTeamSeason[]) => {
 			continue;
 		}
 
+		const playoffRecord = playoffRecords.get(t.tid);
+		const champion = t.seasonAttrs.playoffRoundsWon === numPlayoffRounds;
+
+		// Snapshot the team's effective style dials, so historical rosters can
+		// show how the team played that season. team.coaching is still this
+		// season's blend here - updateTeamCoaching doesn't run until preseason.
+		const teamObj = await idb.cache.teams.get(t.tid);
+
 		coach.seasons.push({
 			season,
 			tid: t.tid,
 			won: t.seasonAttrs.won,
 			lost: t.seasonAttrs.lost,
 			expectedWins: await getExpectedWins(t, season),
+			playoffWon: playoffRecord?.won ?? 0,
+			playoffLost: playoffRecord?.lost ?? 0,
+			playoffRoundsWon: t.seasonAttrs.playoffRoundsWon,
+			champion,
+			coaching: teamObj?.coaching ? { ...teamObj.coaching } : undefined,
 		});
+		if (champion) {
+			coach.awards.push({
+				season,
+				type: "Won Championship",
+			});
+		}
 		await idb.cache.coaches.put(coach);
 	}
 };

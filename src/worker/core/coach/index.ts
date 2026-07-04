@@ -13,6 +13,8 @@ import processCoachMarket, {
 	scoreCandidate,
 } from "./market.ts";
 import developCoach from "./develop.ts";
+import madeHof from "./madeHof.ts";
+import retire from "./retire.ts";
 import { availabilityAdjust, matchupAdjust, opponentProfile } from "./style.ts";
 
 export default {
@@ -30,6 +32,8 @@ export default {
 	philosophyFit,
 	scoreCandidate,
 	developCoach,
+	madeHof,
+	retire,
 	availabilityAdjust,
 	matchupAdjust,
 	opponentProfile,

@@ -368,6 +368,13 @@ const TopStuff = ({
 								</div>
 							) : null}
 						</>
+					) : isSport("basketball") && coach ? (
+						<CoachingSettings
+							key={`coaching-${tid}-${season}`}
+							t={{ tid, coaching: coach.style }}
+							coach={coach}
+							historical
+						/>
 					) : null}
 				</div>
 			</div>

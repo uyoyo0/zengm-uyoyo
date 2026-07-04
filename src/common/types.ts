@@ -1547,6 +1547,8 @@ export type CoachWithoutKey = {
 	ratings: CoachRatings;
 	philosophy: TeamCoaching; // the coach's preferred style dials, [-1, 1]
 	hiredYear?: number;
+	retiredYear?: number;
+	hof?: 1; // same convention as Player.hof
 	// Most recent team, for free agents (loyalty discount on re-signing, display).
 	prevTid?: number;
 	fromPid?: number; // pid of the player this coach used to be, if any
@@ -1558,6 +1560,17 @@ export type CoachWithoutKey = {
 		won: number;
 		lost: number;
 		expectedWins: number;
+		// Playoff fields are absent on seasons recorded before they existed and
+		// not backfilled by the v78 migration (e.g. missing playoffSeries data).
+		playoffWon?: number;
+		playoffLost?: number;
+		playoffRoundsWon?: number;
+		// Stored explicitly because numGamesPlayoffSeries can change over time.
+		champion?: boolean;
+		// The team's effective style dials that season (coach philosophy blended
+		// with the roster). Absent on rows recorded before this existed; the
+		// coach's philosophy is the fallback.
+		coaching?: TeamCoaching;
 	}[];
 	// Snapshot of ratings at each preseason, appended by coach/develop.ts.
 	ratingsHistory?: ({

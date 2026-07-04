@@ -1,5 +1,6 @@
 import useTitleBar from "../../hooks/useTitleBar.tsx";
 import type { View } from "../../../common/types.ts";
+import Coaches from "./Coaches.tsx";
 import Overall from "./Overall.tsx";
 import Players from "./Players.tsx";
 import RetiredJerseyNumbers from "./RetiredJerseyNumbers.tsx";
@@ -12,6 +13,7 @@ const TeamHistory = ({
 	abbrev,
 	bestRecord,
 	championships,
+	coaches,
 	finalsAppearances,
 	history,
 	players,
@@ -71,6 +73,11 @@ const TeamHistory = ({
 						tid={tid}
 						userTid={userTid}
 					/>
+					{coaches.length > 0 ? (
+						<HideableSection title="Coaches">
+							<Coaches coaches={coaches} />
+						</HideableSection>
+					) : null}
 					<HideableSection title="Players">
 						<Players
 							godMode={godMode}

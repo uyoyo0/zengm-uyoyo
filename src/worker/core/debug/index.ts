@@ -8,6 +8,7 @@ import { disableAutoSave } from "./disableAutoSave.ts";
 import maxRatingDists from "./maxRatingDists.ts";
 import percentageDraftPicksSigned from "./percentageDraftPicksSigned.ts";
 import recomputeAwards from "./recomputeAwards.ts";
+import recomputeCoachHallOfFame from "./recomputeCoachHallOfFame.ts";
 import recomputeHallOfFame from "./recomputeHallOfFame.ts";
 import rederiveTendencies from "./rederiveTendencies.ts";
 import recomputeOvr from "./recomputeOvr.ts";
@@ -23,6 +24,7 @@ export default {
 	maxRatingDists,
 	percentageDraftPicksSigned,
 	recomputeAwards,
+	recomputeCoachHallOfFame,
 	recomputeHallOfFame,
 	rederiveTendencies,
 	recomputeOvr,
