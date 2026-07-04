@@ -474,7 +474,8 @@ const recordCoachSeasons = async (teams: AwardTeamSeason[]) => {
 	}
 };
 
-// Coach of the Year: the coach whose team most exceeded its expected wins.
+// Coach of the Year: overachievement (wins above talent-based expected wins)
+// blended with excellence (winning record), among postseason teams.
 const getCoachOfTheYear = async (
 	teams: AwardTeamSeason[],
 	conditions: Conditions,
@@ -501,6 +502,14 @@ const getCoachOfTheYear = async (
 		  }
 		| undefined;
 
+	// Voting balances overachievement (wins above the talent-based expectation)
+	// with excellence (being a great team at all). Pure delta shuts out coaches
+	// of contenders, who have little room left to overachieve; pure wins is
+	// just a best-record award. 0.125 * (won - lost) gives a 60-22 team ~+4.75,
+	// comparable to a strong overachieving season's delta.
+	const EXCELLENCE_WEIGHT = 0.125;
+	let bestScore = -Infinity;
+
 	for (const t of teams) {
 		if (!coachByTid.has(t.tid) || !eligible(t.tid)) {
 			continue;
@@ -509,14 +518,16 @@ const getCoachOfTheYear = async (
 		const lost = t.seasonAttrs.lost;
 		const expectedWins = await getExpectedWins(t, season);
 		const delta = won - expectedWins;
+		const score = delta + EXCELLENCE_WEIGHT * (won - lost);
 
-		// Max delta; tiebreak on more wins.
+		// Max blended score; tiebreak on more wins.
 		if (
 			!best ||
-			delta > best.delta ||
-			(delta === best.delta && won > best.won)
+			score > bestScore ||
+			(score === bestScore && won > best.won)
 		) {
 			best = { tid: t.tid, won, lost, expectedWins, delta };
+			bestScore = score;
 		}
 	}
 
@@ -537,7 +548,7 @@ const getCoachOfTheYear = async (
 			text: `<a href="${helpers.leagueUrl([
 				"coach",
 				String(coach.cid),
-			])}">${name}</a> (${t ? `${t.region} ${t.name}` : ""}) won the Coach of the Year award, with ${best.won} wins vs ${best.expectedWins.toFixed(1)} expected.`,
+			])}">${name}</a> (${t ? `${t.region} ${t.name}` : ""}) won the Coach of the Year award, going ${best.won}-${best.lost} vs ${best.expectedWins.toFixed(1)} expected wins.`,
 			tids: [best.tid],
 			showNotification: g.get("userTids").includes(best.tid),
 			score: 20,
