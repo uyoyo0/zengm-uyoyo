@@ -7,6 +7,7 @@ import hire from "./hire.ts";
 import fire from "./fire.ts";
 import ensureCoaches from "./ensureCoaches.ts";
 import developCoach, { shouldRetire } from "./develop.ts";
+import retireCoach from "./retire.ts";
 import { rosterOptimalStyle } from "./style.ts";
 import type {
 	Coach,
@@ -113,19 +114,7 @@ const processCoachMarket = async (conditions?: Conditions) => {
 			coach.tid === PLAYER.FREE_AGENT ||
 			(coach.tid >= 0 && coach.contract.exp < season);
 		if (betweenContracts && shouldRetire(age)) {
-			const fromTid = coach.tid;
-			coach.tid = PLAYER.RETIRED;
-			await idb.cache.coaches.put(coach);
-			await logEvent(
-				{
-					type: "coachRetired",
-					text: `Head coach ${coach.firstName} ${coach.lastName} retired at age ${age}.`,
-					tids: fromTid >= 0 ? [fromTid] : [],
-					showNotification: fromTid >= 0 && userTids.includes(fromTid),
-					score: 20,
-				},
-				conditions,
-			);
+			await retireCoach(coach, conditions);
 			continue;
 		}
 

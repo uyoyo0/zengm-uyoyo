@@ -7,7 +7,14 @@ import { wrappedPlayerNameLabels } from "../components/PlayerNameLabels.tsx";
 import type { DataTableRow } from "../components/DataTable/index.tsx";
 import { useLocal } from "../util/local.ts";
 
-const HallOfFame = ({ players, stats }: View<"hallOfFame">) => {
+const numCol = (title: string, desc?: string) => ({
+	title,
+	desc,
+	sortSequence: ["desc", "asc"] as ("desc" | "asc")[],
+	sortType: "number" as const,
+});
+
+const HallOfFame = ({ coaches, players, stats }: View<"hallOfFame">) => {
 	useTitleBar({ title: "Hall of Fame" });
 	const { userTid } = useLocal(["userTid"]);
 
@@ -109,6 +116,66 @@ const HallOfFame = ({ players, stats }: View<"hallOfFame">) => {
 				rows={rows}
 				superCols={superCols}
 			/>
+
+			<h2 className="mt-4">Coaches</h2>
+
+			{coaches.length > 0 ? (
+				<>
+					<p>
+						Coaches are eligible after they retire. Career wins, sustained
+						overachievement, playoff success, championships, and Coach of the
+						Year awards all count toward induction. Hall of Fame coaches who
+						coached your team are{" "}
+						<span className="text-info">highlighted in blue</span>.
+					</p>
+					<DataTable
+						cols={[
+							{ title: "Name" },
+							numCol("Seasons"),
+							numCol("W"),
+							numCol("L"),
+							numCol("Win%"),
+							numCol("Playoff W"),
+							numCol("Playoff L"),
+							numCol("Titles", "Championships won"),
+							numCol("COY", "Coach of the Year awards"),
+							numCol("Retired"),
+						]}
+						defaultSort={[2, "desc"]}
+						defaultStickyCols={window.mobile ? 0 : 1}
+						name="HallOfFame:Coaches"
+						pagination
+						rows={coaches.map((c) => ({
+							key: c.cid,
+							data: [
+								{
+									value: (
+										<a href={helpers.leagueUrl(["coach", String(c.cid)])}>
+											{c.firstName} {c.lastName}
+										</a>
+									),
+									sortValue: `${c.lastName} ${c.firstName}`,
+									searchValue: `${c.firstName} ${c.lastName}`,
+								},
+								c.numSeasons,
+								c.won,
+								c.lost,
+								helpers.roundWinp(c.winp),
+								c.playoffWon,
+								c.playoffLost,
+								c.championships,
+								c.coy,
+								c.retiredYear ?? "",
+							],
+							classNames: {
+								"table-info": c.userTeam,
+							},
+						}))}
+					/>
+				</>
+			) : (
+				<p>No coaches have been inducted into the Hall of Fame yet.</p>
+			)}
 		</>
 	);
 };

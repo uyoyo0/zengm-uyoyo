@@ -11,6 +11,7 @@ import {
 } from "../../common/constants.ts";
 import { player, season } from "../core/index.ts";
 import genTendencies from "../core/player/genTendencies.basketball.ts";
+import getPlayoffRecords from "../core/season/getPlayoffRecords.ts";
 import { idb } from "./index.ts";
 import { helpers, logEvent } from "../util/index.ts";
 import connectIndexedDB from "./connectIndexedDB.ts";
@@ -1815,6 +1816,83 @@ const migrate = async ({
 				autoIncrement: true,
 			});
 			lineupStore.createIndex("season, tid", ["season", "tid"]);
+		}
+	}
+
+	if (
+		oldVersion < 78 &&
+		// Guard against half-upgraded DBs missing stores (see lineupsStore.test.ts).
+		db.objectStoreNames.contains("coaches") &&
+		db.objectStoreNames.contains("playoffSeries") &&
+		db.objectStoreNames.contains("teamSeasons")
+	) {
+		// Backfill playoff results and championships onto coach season records.
+		// HoF flags are not set here because madeHof depends on game attributes
+		// (hofFactor, numGames) that aren't initialized inside the upgrade
+		// transaction; bbgm.debug.recomputeCoachHallOfFame() covers that.
+		const playoffsBySeason = new Map<
+			number,
+			{
+				records: ReturnType<typeof getPlayoffRecords>;
+				numRounds: number;
+			}
+		>();
+		for await (const cursor of transaction.objectStore("playoffSeries")) {
+			const ps = cursor.value;
+			playoffsBySeason.set(ps.season, {
+				records: getPlayoffRecords(ps.series),
+				numRounds: ps.series.length,
+			});
+		}
+
+		const teamSeasonsIndex = transaction
+			.objectStore("teamSeasons")
+			.index("tid, season");
+
+		for await (const cursor of transaction.objectStore("coaches")) {
+			const coach = cursor.value;
+			if (!coach.seasons) {
+				continue;
+			}
+
+			let changed = false;
+			for (const s of coach.seasons) {
+				if (s.playoffWon !== undefined) {
+					continue;
+				}
+				const playoffs = playoffsBySeason.get(s.season);
+				if (!playoffs) {
+					// Playoff data deleted or season predates it - leave fields absent.
+					continue;
+				}
+
+				const ts = await teamSeasonsIndex.get([s.tid, s.season]);
+				const playoffRoundsWon = ts?.playoffRoundsWon ?? -1;
+				const record = playoffs.records.get(s.tid);
+
+				s.playoffWon = record?.won ?? 0;
+				s.playoffLost = record?.lost ?? 0;
+				s.playoffRoundsWon = playoffRoundsWon;
+				s.champion = playoffRoundsWon === playoffs.numRounds;
+				changed = true;
+
+				if (
+					s.champion &&
+					!coach.awards.some(
+						(a: { season: number; type: string }) =>
+							a.season === s.season && a.type === "Won Championship",
+					)
+				) {
+					coach.awards.push({
+						season: s.season,
+						type: "Won Championship",
+					});
+				}
+			}
+
+			if (changed) {
+				await cursor.update(coach);
+			}
 		}
 	}
 

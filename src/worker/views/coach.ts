@@ -63,6 +63,9 @@ const updateCoach = async (
 			won: seasons.reduce((sum, s) => sum + s.won, 0),
 			lost: seasons.reduce((sum, s) => sum + s.lost, 0),
 			expectedWins: seasons.reduce((sum, s) => sum + s.expectedWins, 0),
+			playoffWon: seasons.reduce((sum, s) => sum + (s.playoffWon ?? 0), 0),
+			playoffLost: seasons.reduce((sum, s) => sum + (s.playoffLost ?? 0), 0),
+			championships: seasons.filter((s) => s.champion).length,
 		};
 
 		return {

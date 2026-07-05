@@ -96,15 +96,18 @@ type CoachCard = {
 };
 
 // Read-only: the team's style is set by its head coach (see the Coaches page).
+// With historical=true, shows a past season's coach and dial snapshot.
 const CoachingSettings = ({
 	t,
 	coach,
+	historical,
 }: {
 	t: {
 		tid: number;
 		coaching?: TeamCoaching;
 	};
 	coach?: CoachCard;
+	historical?: boolean;
 }) => {
 	const [expanded, setExpanded] = useState(!window.mobile);
 
@@ -125,12 +128,19 @@ const CoachingSettings = ({
 					<b>{titleText}</b>
 				)}
 				<HelpPopover className="ms-1" title={titleText}>
-					<p>
-						This team's playing style is set by its head coach — their
-						philosophy, how much they adapt it to the roster, and how they
-						adjust for each opponent. Manage coaches on the{" "}
-						<a href={helpers.leagueUrl(["coaches"])}>Coaches</a> page.
-					</p>
+					{historical ? (
+						<p>
+							The head coach that season and the style they played — their
+							philosophy blended with that roster.
+						</p>
+					) : (
+						<p>
+							This team's playing style is set by its head coach — their
+							philosophy, how much they adapt it to the roster, and how they
+							adjust for each opponent. Manage coaches on the{" "}
+							<a href={helpers.leagueUrl(["coaches"])}>Coaches</a> page.
+						</p>
+					)}
 				</HelpPopover>
 			</div>
 			<AnimatePresence initial={false}>
@@ -164,7 +174,9 @@ const CoachingSettings = ({
 						<div className="mb-2">
 							<CoachDials values={coaching} />
 						</div>
-						<div className="fw-bold mb-1">Projected impact</div>
+						<div className="fw-bold mb-1">
+							{historical ? "Style impact" : "Projected impact"}
+						</div>
 						<ul className="list-unstyled mb-0 small text-body-secondary">
 							{projectedEffects(coaching).map((effect, i) => (
 								<li key={i}>{effect}</li>

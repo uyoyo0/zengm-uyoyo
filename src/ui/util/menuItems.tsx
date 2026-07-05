@@ -255,6 +255,23 @@ export const menuItems: (MenuItemLink | MenuItemHeader)[] = [
 				path: ["awards_records"],
 				text: "Awards Records",
 			},
+			...(bySport({
+				baseball: false,
+				basketball: true,
+				football: false,
+				hockey: false,
+			})
+				? ([
+						{
+							type: "link",
+							league: true,
+							commandPalette: true,
+							commandPaletteOnly: true,
+							path: ["coach_records"],
+							text: "Coaching Records",
+						},
+					] as MenuItemLink[])
+				: []),
 			{
 				type: "link",
 				league: true,
