@@ -76,6 +76,36 @@ export const scoreCandidate = (
 	);
 };
 
+// Annual firing check for an AI team's coach. Management judges the coach on
+// their "perceived" record: actual win% adjusted by the roster excuse (wins
+// above/below the talent-based expectation, per game). An overachiever on a
+// bad roster reads like a .500 coach and is spared; an underachiever on a
+// decent roster reads like a losing coach and hits the hot seat even at .500.
+// Reputation (ovr) and dead money (years remaining) both buy patience.
+export const fireProbability = ({
+	winp,
+	deltaPerGame,
+	ovr,
+	yearsRemaining,
+}: {
+	winp: number;
+	deltaPerGame: number; // (won - expectedWins) / gp from last season, 0 if unknown
+	ovr: number;
+	yearsRemaining: number;
+}) => {
+	// Cap the excuse/blame at ~12 wins per 82 so one weird season can't fully
+	// dominate the record.
+	const perceived = helpers.bound(
+		winp + helpers.bound(deltaPerGame, -0.15, 0.15),
+		0,
+		1,
+	);
+	return (
+		(helpers.bound(0.45 - perceived, 0, 0.45) * (1 - ovr / 130)) /
+		(1 + 0.5 * yearsRemaining)
+	);
+};
+
 const winpLastSeason = async (tid: number) => {
 	const ts = await idb.cache.teamSeasons.indexGet("teamSeasonsByTidSeason", [
 		tid,
@@ -216,8 +246,9 @@ const processCoachMarket = async (conditions?: Conditions) => {
 		);
 	}
 
-	// 3. AI firings: same underperformance logic as before, damped by how much
-	// dead money the team would eat for the remaining contract years.
+	// 3. AI firings: losing gets a coach fired, but wins above/below the
+	// talent-based expectation shift the blame (see fireProbability), damped by
+	// how much dead money the team would eat for the remaining contract years.
 	for (const t of teams) {
 		if (userTids.includes(t.tid) || spectator) {
 			continue;
@@ -229,10 +260,26 @@ const processCoachMarket = async (conditions?: Conditions) => {
 		}
 
 		const winp = await winpLastSeason(t.tid);
-		const yearsRemaining = Math.max(0, coach.contract.exp - season + 1);
-		const fireProb =
-			(helpers.bound(0.45 - winp, 0, 0.45) * (1 - coach.ratings.ovr / 130)) /
-			(1 + 0.5 * yearsRemaining);
+
+		// Last season's overachievement with this team, if the coach was here.
+		let deltaPerGame = 0;
+		const lastSeasonRow = coach.seasons?.findLast(
+			(s) => s.tid === t.tid && s.season === season - 1,
+		);
+		if (lastSeasonRow) {
+			const gp = lastSeasonRow.won + lastSeasonRow.lost;
+			if (gp > 0) {
+				deltaPerGame =
+					(lastSeasonRow.won - lastSeasonRow.expectedWins) / gp;
+			}
+		}
+
+		const fireProb = fireProbability({
+			winp,
+			deltaPerGame,
+			ovr: coach.ratings.ovr,
+			yearsRemaining: Math.max(0, coach.contract.exp - season + 1),
+		});
 		if (Math.random() < fireProb) {
 			await fire(t.tid, conditions);
 		}

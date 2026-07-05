@@ -1,6 +1,7 @@
 import { assert, describe, test } from "vitest";
 import processCoachMarket, {
 	coachDemand,
+	fireProbability,
 	philosophyFit,
 	scoreCandidate,
 } from "./market.ts";
@@ -246,5 +247,63 @@ describe("generate", () => {
 		await setupLeague(2);
 		const c = await generate(PLAYER.FREE_AGENT, { age: 45 });
 		assert(c.contract.exp >= 2020 - 1);
+	});
+});
+
+describe("fireProbability", () => {
+	const base = { ovr: 50, yearsRemaining: 1 };
+
+	test("overachieving shields a losing coach", () => {
+		const neutral = fireProbability({ ...base, winp: 0.3, deltaPerGame: 0 });
+		const overachiever = fireProbability({
+			...base,
+			winp: 0.3,
+			deltaPerGame: 0.08,
+		});
+		assert(overachiever < neutral);
+		assert(overachiever > 0);
+	});
+
+	test("a big enough excuse fully clears the hot seat", () => {
+		// .38 record but 8 wins per 82 above expectation -> perceived ~.48.
+		const p = fireProbability({ ...base, winp: 0.38, deltaPerGame: 0.1 });
+		assert.strictEqual(p, 0);
+	});
+
+	test("underachieving puts a .500 coach at risk", () => {
+		const neutral = fireProbability({ ...base, winp: 0.5, deltaPerGame: 0 });
+		const underachiever = fireProbability({
+			...base,
+			winp: 0.5,
+			deltaPerGame: -0.1,
+		});
+		assert.strictEqual(neutral, 0);
+		assert(underachiever > 0);
+	});
+
+	test("blame and excuse are capped", () => {
+		const capped = fireProbability({
+			...base,
+			winp: 0.4,
+			deltaPerGame: -0.15,
+		});
+		const beyondCap = fireProbability({
+			...base,
+			winp: 0.4,
+			deltaPerGame: -0.5,
+		});
+		assert.strictEqual(capped, beyondCap);
+	});
+
+	test("reputation and dead money buy patience", () => {
+		const args = { winp: 0.3, deltaPerGame: 0 };
+		assert(
+			fireProbability({ ...args, ovr: 80, yearsRemaining: 1 }) <
+				fireProbability({ ...args, ovr: 40, yearsRemaining: 1 }),
+		);
+		assert(
+			fireProbability({ ...args, ovr: 50, yearsRemaining: 3 }) <
+				fireProbability({ ...args, ovr: 50, yearsRemaining: 1 }),
+		);
 	});
 });
