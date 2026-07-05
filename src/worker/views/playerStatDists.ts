@@ -51,6 +51,8 @@ const updatePlayers = async (
 		} else {
 			if (inputs.statType === "advanced") {
 				stats = PLAYER_STATS_TABLES.advanced!.stats;
+			} else if (inputs.statType === "onOff") {
+				stats = PLAYER_STATS_TABLES.onOff!.stats;
 			} else if (inputs.statType === "shotLocations") {
 				stats = PLAYER_STATS_TABLES.shotLocations!.stats;
 			} else {

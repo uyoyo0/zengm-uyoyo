@@ -230,6 +230,8 @@ export const getStatsTableByType = (statTypePlus: string) => {
 	if (isSport("basketball")) {
 		if (statTypePlus === "advanced") {
 			table = PLAYER_STATS_TABLES.advanced!;
+		} else if (statTypePlus === "onOff") {
+			table = PLAYER_STATS_TABLES.onOff!;
 		} else if (statTypePlus === "shotLocations") {
 			table = PLAYER_STATS_TABLES.shotLocations!;
 		} else if (statTypePlus === "gameHighs") {

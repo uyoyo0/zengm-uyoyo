@@ -24,7 +24,15 @@ export const statTypes = [
 	"bio",
 	"ratings",
 	...(isSport("basketball")
-		? ["perGame", "per36", "totals", "shotLocations", "advanced", "gameHighs"]
+		? [
+				"perGame",
+				"per36",
+				"totals",
+				"shotLocations",
+				"advanced",
+				"onOff",
+				"gameHighs",
+			]
 		: Object.keys(PLAYER_STATS_TABLES)),
 ];
 
