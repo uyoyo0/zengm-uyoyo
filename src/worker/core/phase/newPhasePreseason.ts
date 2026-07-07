@@ -355,6 +355,24 @@ const newPhasePreseason = async (
 		}
 	}
 
+	// Context for the preseason popularity update (basketball): last season's
+	// playoff results, built once instead of per player.
+	const popularityContext = {
+		lastSeason: newSeason - 1,
+		numGames: g.get("numGames"),
+		playoffRoundsWonByTid: new Map<number, number>(),
+		numPlayoffRounds: g.get("numGamesPlayoffSeries", newSeason - 1).length,
+	};
+	if (isSport("basketball")) {
+		const lastTeamSeasons = await idb.cache.teamSeasons.indexGetAll(
+			"teamSeasonsBySeasonTid",
+			[[newSeason - 1], [newSeason - 1, "Z"]],
+		);
+		for (const ts of lastTeamSeasons) {
+			popularityContext.playoffRoundsWonByTid.set(ts.tid, ts.playoffRoundsWon);
+		}
+	}
+
 	// Loop through all non-retired players
 	for (const p of players) {
 		if (isSport("hockey") && p.numConsecutiveGamesG !== undefined) {
@@ -397,6 +415,11 @@ const newPhasePreseason = async (
 			// Update ratings
 			player.addRatingsRow(p, scoutingLevel);
 			await player.develop(p, 1, false, coachingLevels[p.tid]);
+
+			// Fan popularity for the new season, from last season's play.
+			if (isSport("basketball")) {
+				player.updatePopularity(p, popularityContext);
+			}
 		}
 
 		if (

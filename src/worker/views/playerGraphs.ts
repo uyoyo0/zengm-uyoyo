@@ -14,6 +14,7 @@ import type {
 import { POS_NUMBERS } from "../../common/constants.baseball.ts";
 import { maxBy } from "../../common/utils.ts";
 import {
+	EXTRA_DISPLAY_RATINGS,
 	getStats,
 	getStatsTableByType,
 } from "../../common/advancedPlayerSearch.ts";
@@ -49,7 +50,10 @@ const getPlayerStats = async (
 
 	const statsTable = getStatsTableByType(statTypePlus);
 
-	const ratings = statTypePlus === "ratings" ? ["ovr", "pot", ...RATINGS] : [];
+	const ratings =
+		statTypePlus === "ratings"
+			? ["ovr", "pot", ...RATINGS, ...EXTRA_DISPLAY_RATINGS]
+			: [];
 	let statType: PlayerStatType;
 	if (isSport("basketball")) {
 		if (statTypePlus === "totals") {

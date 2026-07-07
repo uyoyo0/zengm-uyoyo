@@ -915,6 +915,18 @@ const sportSpecificCols = bySport<{
 			sortType: "number",
 			title: "Cltch",
 		},
+		"rating:popularity": {
+			desc: "Popularity",
+			sortSequence: ["desc", "asc"],
+			sortType: "number",
+			title: "Pop",
+		},
+		"rating:charisma": {
+			desc: "Charisma (innate, drives popularity)",
+			sortSequence: ["desc", "asc"],
+			sortType: "number",
+			title: "Cha",
+		},
 		"rating:diq": {
 			desc: "Defensive IQ",
 			sortSequence: ["desc", "asc"],

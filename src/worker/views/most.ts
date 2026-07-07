@@ -430,6 +430,28 @@ const updatePlayers = async (
 				}
 				return { value: Math.round(sum) };
 			};
+		} else if (type === "most_popular") {
+			title = "Most Popular Players";
+			description =
+				"These are the players who reached the highest peak popularity with the fans.";
+			extraCols.push({
+				key: ["most", "value"],
+				colName: "rating:popularity",
+			});
+
+			getValue = (p) => {
+				let peak = 0;
+				for (const r of p.ratings) {
+					const popularity = (r as any).popularity;
+					if (typeof popularity === "number" && popularity > peak) {
+						peak = popularity;
+					}
+				}
+				if (peak === 0) {
+					return;
+				}
+				return { value: peak };
+			};
 		} else if (type === "playoff_legends") {
 			title = "Playoff Legends";
 			description =

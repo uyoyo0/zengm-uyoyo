@@ -17,6 +17,8 @@ import potEstimator from "./potEstimator.ts";
 import { TOO_MANY_TEAMS_TOO_SLOW } from "../season/getInitialNumGamesConfDivSettings.ts";
 import { getNeutralCoachingLevel } from "../../../common/coachingConstants.ts";
 import { bySport, isSport } from "../../../common/sportFunctions.ts";
+import { realGauss } from "../../../common/random.ts";
+import type { PlayerRatings as PlayerRatingsBasketball } from "../../../common/types.basketball.ts";
 import { last } from "../../../common/utils.ts";
 
 const NUM_SIMULATIONS = 20; // Higher is more accurate, but slower. Low accuracy is fine, though!
@@ -161,6 +163,23 @@ const develop = async (
 				ratings.pos = p.pos;
 			} else {
 				ratings.pos = pos(ratings);
+			}
+
+			// Lazy popularity seed - genRatings can't do it (ovr is 0 there), and
+			// this also covers imported players from before popularity existed.
+			// Better prospects arrive with more hype; charisma tilts it.
+			const ratingsBasketball = ratings as PlayerRatingsBasketball;
+			if (ratingsBasketball.popularity === undefined) {
+				ratingsBasketball.popularity = helpers.bound(
+					Math.round(
+						12 +
+							0.75 * Math.max(0, ratings.ovr - 30) +
+							0.5 * ((ratingsBasketball.charisma ?? 50) - 50) +
+							realGauss(0, 5),
+					),
+					0,
+					100,
+				);
 			}
 		} else {
 			let pos;

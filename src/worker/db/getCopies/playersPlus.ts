@@ -523,7 +523,10 @@ const processRatings = (
 				attr !== "season" &&
 				attr !== "hgt" &&
 				attr !== "pos" &&
-				attr !== "injuryIndex"
+				attr !== "injuryIndex" &&
+				// Public fan sentiment, not a scouted skill - never fuzzed.
+				attr !== "popularity" &&
+				attr !== "charisma"
 			) {
 				row[attr] = player.fuzzRating(pr[attr], pr.fuzz);
 			} else {

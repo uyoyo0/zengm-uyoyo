@@ -175,6 +175,9 @@ const genRatings = (
 			oiq: rawRatings.oiq,
 			pss: rawRatings.pss,
 		}),
+		// Innate charisma, constant for the player's career. popularity itself
+		// is seeded lazily in develop.ts once ovr is known.
+		charisma: helpers.bound(Math.round(50 + realGauss(0, 9)), 15, 85),
 	};
 
 	return {

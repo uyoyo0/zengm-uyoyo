@@ -314,6 +314,12 @@ export const frivolities: Record<string, Frivolity[]> = {
 						description:
 							"The players who scored the most career clutch points.",
 					},
+					{
+						urlParts: ["most", "most_popular"],
+						name: "Most Popular",
+						description:
+							"The players who reached the highest peak popularity with the fans.",
+					},
 				]
 			: []),
 		{

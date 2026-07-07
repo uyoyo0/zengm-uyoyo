@@ -17,6 +17,14 @@ import { shuffle } from "../../../common/random.ts";
 
 const MIN_PLAYERS_CONTEST = 2;
 
+// Fan vote (basketball): popularity swings the stats-based score by up to
+// ±12.5% - enough to flip fringe selections (realistic snubs), never enough
+// to put a scrub in over a star.
+export const fanVoteScore = (
+	statScore: number,
+	popularity: number | undefined,
+) => statScore * (1 + (0.25 * ((popularity ?? 50) - 50)) / 100);
+
 const create = async (conditions: Conditions) => {
 	const allStars: AllStars = {
 		season: g.get("season"),
@@ -32,7 +40,7 @@ const create = async (conditions: Conditions) => {
 	]);
 	const players = await idb.getCopies.playersPlus(playersAll, {
 		attrs: ["pid", "firstName", "name", "tid", "injury"],
-		ratings: ["pos", "ovr"],
+		ratings: ["pos", "ovr", "popularity"],
 		stats: bySport({
 			baseball: [
 				"war",
@@ -57,7 +65,10 @@ const create = async (conditions: Conditions) => {
 		bySport({
 			baseball: p.stats.war,
 			football: mvpScore(p),
-			basketball: 2.5 * p.stats.ewa + p.stats.ws,
+			basketball: fanVoteScore(
+				2.5 * p.stats.ewa + p.stats.ws,
+				p.ratings.popularity,
+			),
 			hockey: p.stats.ps,
 		});
 

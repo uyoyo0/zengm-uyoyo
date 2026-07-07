@@ -1896,6 +1896,69 @@ const migrate = async ({
 		}
 	}
 
+	if (
+		oldVersion < 79 &&
+		isSport("basketball") &&
+		// Guard against half-upgraded DBs missing stores (see lineupsStore.test.ts).
+		db.objectStoreNames.contains("players")
+	) {
+		// Backfill fan popularity onto every ratings row. Uses only data on the
+		// player object (no g), so it can run in the upgrade transaction. The
+		// seed mirrors develop.ts, plus award credit for that season so career
+		// popularity history looks plausible for legends.
+		const awardBonus = (awards: { season: number; type: string }[], season: number) => {
+			let bonus = 0;
+			for (const award of awards) {
+				if (award.season === season) {
+					if (award.type === "Most Valuable Player") {
+						bonus += 22;
+					} else if (
+						award.type === "Won Championship" ||
+						award.type === "Finals MVP"
+					) {
+						bonus += 10;
+					} else if (award.type === "All-Star") {
+						bonus += 8;
+					}
+				}
+			}
+			return Math.min(30, bonus);
+		};
+
+		for await (const cursor of transaction.objectStore("players")) {
+			const p = cursor.value;
+			let changed = false;
+
+			const charisma = helpers.bound(
+				Math.round(50 + 9 * (Math.random() + Math.random() - 1)),
+				15,
+				85,
+			);
+
+			for (const r of p.ratings as any[]) {
+				if (r.popularity === undefined) {
+					r.charisma ??= charisma;
+					r.popularity = helpers.bound(
+						Math.round(
+							12 +
+								0.75 * Math.max(0, r.ovr - 30) +
+								0.5 * (r.charisma - 50) +
+								awardBonus(p.awards, r.season - 1) +
+								4 * (Math.random() + Math.random() - 1),
+						),
+						0,
+						100,
+					);
+					changed = true;
+				}
+			}
+
+			if (changed) {
+				await cursor.update(p);
+			}
+		}
+	}
+
 	// Next update - do similar to `oldVersion < 71` above for numPlayoffRounds and draftType, from loadGameAttributes
 	// Also draftLotteryResult.draftType should be nba1994 if undefined, see views/draftLottery.ts, maybe add comment about hardcoded 14 there if that is also a similar issue
 };

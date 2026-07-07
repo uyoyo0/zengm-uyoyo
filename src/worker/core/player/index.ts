@@ -42,6 +42,7 @@ import shouldRetire from "./shouldRetire.ts";
 import skills from "./skills.ts";
 import stats from "./stats.ts";
 import updateOvrMeanStd from "./updateOvrMeanStd.ts";
+import updatePopularity from "./updatePopularity.basketball.ts";
 import updateValues from "./updateValues.ts";
 import value from "./value.ts";
 import valueCombineOvrPot from "./valueCombineOvrPot.ts";
@@ -91,6 +92,7 @@ export default {
 	skills,
 	stats,
 	updateOvrMeanStd,
+	updatePopularity,
 	updateValues,
 	value,
 	valueCombineOvrPot,

@@ -10,6 +10,7 @@ import {
 } from "./attendance.ts";
 import { levelToAmount } from "../../../common/budgetLevels.ts";
 import winProbFromOvr from "../team/winProbFromOvr.ts";
+import { getStarPowerFactor } from "./starPower.ts";
 import getWinner from "../../../common/getWinner.ts";
 import { getAdjustedTicketPrice } from "../../../common/getAdjustedTicketPrice.ts";
 import { bySport, isSport } from "../../../common/sportFunctions.ts";
@@ -67,6 +68,20 @@ const writeTeamStats = async (results: GameResults) => {
 				pop: teamSeason.pop,
 				playoffs,
 			});
+
+			// Star power: beloved stars sell tickets (and merch/sponsors/TV, which
+			// all scale off baseAttendance).
+			if (isSport("basketball")) {
+				const roster = await idb.cache.players.indexGetAll(
+					"playersByTid",
+					results.team[t1].id,
+				);
+				baseAttendance *= getStarPowerFactor(
+					roster.map(
+						(p) => (p.ratings.at(-1) as any)?.popularity ?? 50,
+					),
+				);
+			}
 
 			if (t.autoTicketPrice !== false || !g.get("userTids").includes(t.tid)) {
 				const ticketPrice = await getAutoTicketPrice({
