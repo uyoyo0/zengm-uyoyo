@@ -38,8 +38,9 @@ const updatePopularity = (p: Player, context: PopularityContext) => {
 		return;
 	}
 
-	const prev = ratings.popularity ?? 50;
-	const charisma = ratings.charisma ?? 50;
+	// Number.isFinite rather than ?? so a NaN from bad data can't propagate.
+	const prev = Number.isFinite(ratings.popularity) ? ratings.popularity : 50;
+	const charisma = Number.isFinite(ratings.charisma) ? ratings.charisma : 50;
 	const { lastSeason, numGames, playoffRoundsWonByTid, numPlayoffRounds } =
 		context;
 

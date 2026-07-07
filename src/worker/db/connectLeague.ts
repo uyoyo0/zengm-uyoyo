@@ -12,6 +12,7 @@ import {
 import { player, season } from "../core/index.ts";
 import genTendencies from "../core/player/genTendencies.basketball.ts";
 import getPlayoffRecords from "../core/season/getPlayoffRecords.ts";
+import seedPopularity from "../core/player/seedPopularity.basketball.ts";
 import { idb } from "./index.ts";
 import { helpers, logEvent } from "../util/index.ts";
 import connectIndexedDB from "./connectIndexedDB.ts";
@@ -1902,58 +1903,12 @@ const migrate = async ({
 		// Guard against half-upgraded DBs missing stores (see lineupsStore.test.ts).
 		db.objectStoreNames.contains("players")
 	) {
-		// Backfill fan popularity onto every ratings row. Uses only data on the
-		// player object (no g), so it can run in the upgrade transaction. The
-		// seed mirrors develop.ts, plus award credit for that season so career
-		// popularity history looks plausible for legends.
-		const awardBonus = (awards: { season: number; type: string }[], season: number) => {
-			let bonus = 0;
-			for (const award of awards) {
-				if (award.season === season) {
-					if (award.type === "Most Valuable Player") {
-						bonus += 22;
-					} else if (
-						award.type === "Won Championship" ||
-						award.type === "Finals MVP"
-					) {
-						bonus += 10;
-					} else if (award.type === "All-Star") {
-						bonus += 8;
-					}
-				}
-			}
-			return Math.min(30, bonus);
-		};
-
+		// Backfill fan popularity onto every ratings row. seedPopularity uses
+		// only data on the player object (no g), so it can run in the upgrade
+		// transaction, and its award credit keeps legends' history plausible.
 		for await (const cursor of transaction.objectStore("players")) {
 			const p = cursor.value;
-			let changed = false;
-
-			const charisma = helpers.bound(
-				Math.round(50 + 9 * (Math.random() + Math.random() - 1)),
-				15,
-				85,
-			);
-
-			for (const r of p.ratings as any[]) {
-				if (r.popularity === undefined) {
-					r.charisma ??= charisma;
-					r.popularity = helpers.bound(
-						Math.round(
-							12 +
-								0.75 * Math.max(0, r.ovr - 30) +
-								0.5 * (r.charisma - 50) +
-								awardBonus(p.awards, r.season - 1) +
-								4 * (Math.random() + Math.random() - 1),
-						),
-						0,
-						100,
-					);
-					changed = true;
-				}
-			}
-
-			if (changed) {
+			if (seedPopularity(p)) {
 				await cursor.update(p);
 			}
 		}

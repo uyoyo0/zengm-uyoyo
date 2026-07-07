@@ -5,6 +5,7 @@ import heightToRating from "./heightToRating.ts";
 import name from "./name.ts";
 import ovr from "./ovr.ts";
 import pos from "./pos.ts";
+import seedPopularity from "./seedPopularity.basketball.ts";
 import setContract from "./setContract.ts";
 import skills from "./skills.ts";
 import stats from "./stats.ts";
@@ -206,6 +207,12 @@ const augmentPartialPlayer = async (
 	) {
 		// Kind of hacky... impose ovrs/pots, but only for latest season. This will also overwrite ovr, pot, and skills - but they may again be overwritten below if fuzz was not present
 		await develop(p, 0);
+	}
+
+	// League file players (including real-players leagues) don't go through
+	// develop for basketball, so seed fan popularity here.
+	if (isSport("basketball")) {
+		seedPopularity(p as { ratings: any[]; awards?: any[] });
 	}
 
 	// Rating rescaling
