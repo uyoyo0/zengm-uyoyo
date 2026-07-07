@@ -1,6 +1,6 @@
 import { idb } from "../../db/index.ts";
 import { g, helpers, logEvent } from "../../util/index.ts";
-import { PLAYER, DEFAULT_COACHING } from "../../../common/constants.ts";
+import { PLAYER } from "../../../common/constants.ts";
 import { orderBy } from "../../../common/utils.ts";
 import genContract from "./genContract.ts";
 import hire from "./hire.ts";
@@ -43,20 +43,10 @@ export const coachDemand = (
 	};
 };
 
-// How well a coach's preferred style matches a roster: 1 = identical dials,
-// 0 = maximally opposed (dials are in [-1, 1]).
-export const philosophyFit = (
-	philosophy: TeamCoaching,
-	rosterOptimal: TeamCoaching,
-) => {
-	const keys = Object.keys(DEFAULT_COACHING) as (keyof TeamCoaching)[];
-	const meanDist =
-		keys.reduce(
-			(sum, key) => sum + Math.abs(philosophy[key] - rosterOptimal[key]),
-			0,
-		) / keys.length;
-	return 1 - meanDist / 2;
-};
+// Moved to style.ts (so mood/roster code can import it without pulling in the
+// whole market module); re-exported here for existing consumers.
+import { philosophyFit } from "./style.ts";
+export { philosophyFit };
 
 // AI hiring score: mostly quality, then fit with the roster, then price.
 export const scoreCandidate = (

@@ -3606,6 +3606,12 @@ const cols: {
 		sortType: "number",
 	},
 	Strategy: {},
+	"System Fit": {
+		title: "Fit",
+		desc: "How well the player's style fits the coach's system",
+		sortSequence: ["desc", "asc"],
+		sortType: "number",
+	},
 	T: {
 		desc: "Ties",
 		sortSequence: ["desc", "asc"],

@@ -11,31 +11,7 @@ import { confirm } from "../util/confirm.tsx";
 import { logEvent } from "../util/logEvent.ts";
 import type { View } from "../../common/types.ts";
 
-// Letter grade for how well a coach's style suits the user's roster.
-const fitGrade = (fit: number) => {
-	if (fit >= 0.9) {
-		return "A";
-	}
-	if (fit >= 0.82) {
-		return "B";
-	}
-	if (fit >= 0.74) {
-		return "C";
-	}
-	if (fit >= 0.66) {
-		return "D";
-	}
-	return "F";
-};
-
-const fitClass = (grade: string) =>
-	grade === "A" || grade === "B"
-		? "text-success"
-		: grade === "D"
-			? "text-warning"
-			: grade === "F"
-				? "text-danger"
-				: undefined;
+import { fitClass, fitGrade } from "../util/fitGrade.ts";
 
 const num = (title: string, desc?: string): Col => ({
 	title,

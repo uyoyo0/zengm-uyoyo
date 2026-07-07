@@ -39,6 +39,8 @@ const componentText = (
 				return "Eager to sign first non-rookie contract";
 			case "relatives":
 				return `Wants to play with ${helpers.pronoun(gender, "his")} ${helpers.plural("relative", value / 2)}`;
+			case "systemFit":
+				return "Thrives in the coach's system";
 		}
 	}
 
@@ -61,6 +63,8 @@ const componentText = (
 			throw new Error("Should never happen");
 		case "relatives":
 			throw new Error("Should never happen");
+		case "systemFit":
+			return "Doesn't fit the coach's system";
 	}
 };
 

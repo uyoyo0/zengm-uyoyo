@@ -6,6 +6,7 @@ import { toWorker } from "../../util/toWorker.ts";
 import InstructionsAndSortButtons from "./InstructionsAndSortButtons.tsx";
 import PlayThroughInjurySliders from "./PlayThroughInjuriesSliders.tsx";
 import CoachingSettings from "./CoachingSettings.tsx";
+import TeamChemistry from "./TeamChemistry.tsx";
 import { type LocalStateUI, type View } from "../../../common/types.ts";
 import { bySport, isSport } from "../../../common/sportFunctions.ts";
 import Note from "../Player/Note.tsx";
@@ -152,6 +153,7 @@ const TopStuff = ({
 	showTradeFor,
 	showTradingBlock,
 	t,
+	teamChemistry,
 	tid,
 	usePts,
 }: Pick<
@@ -168,6 +170,7 @@ const TopStuff = ({
 	| "showTradeFor"
 	| "showTradingBlock"
 	| "t"
+	| "teamChemistry"
 	| "tid"
 	| "usePts"
 > & {
@@ -366,6 +369,14 @@ const TopStuff = ({
 										/>
 									) : null}
 								</div>
+							) : null}
+							{teamChemistry && !challengeNoRatings ? (
+								<TeamChemistry
+									players={players}
+									season={season}
+									teamChemistry={teamChemistry}
+									tid={tid}
+								/>
 							) : null}
 						</>
 					) : isSport("basketball") && coach ? (

@@ -18,18 +18,12 @@ const topRatings = (players: Player[]) =>
 		.slice(0, 8)
 		.map((p) => last(p.ratings) as any);
 
-// The style that best fits a roster's strengths. Signals are centered on the
-// roster's own average across the involved ratings, so they express
-// comparative advantage ("we shoot better than we do anything else") rather
-// than absolute rating level - otherwise below-average rosters get told to do
-// less of everything, and every dial drifts negative league-wide.
-export const rosterOptimalStyle = (players: Player[]): TeamCoaching => {
-	const top = topRatings(players);
-	if (top.length === 0) {
-		return { ...DEFAULT_COACHING };
-	}
-	const m = (key: string) => avg(top.map((r) => r[key] ?? 50));
-
+// Shared core: dials from a ratings accessor. Signals are centered on the
+// average across the involved ratings, so they express comparative advantage
+// ("we shoot better than we do anything else") rather than absolute rating
+// level - otherwise below-average rosters/players get told to do less of
+// everything, and every dial drifts negative league-wide.
+const styleFromMeans = (m: (key: string) => number): TeamCoaching => {
 	const tp = m("tp");
 	const spd = m("spd");
 	const dnk = m("dnk");
@@ -50,6 +44,68 @@ export const rosterOptimalStyle = (players: Player[]): TeamCoaching => {
 		paintDefense: round1((((hgt + diq) / 2 - spd) / 25) * 0.8),
 		defensiveAggression: round1(signal((diq + spd) / 2, 0.6)),
 	};
+};
+
+// The style that best fits a roster's strengths, from the top ~8 players.
+export const rosterOptimalStyle = (players: Player[]): TeamCoaching => {
+	const top = topRatings(players);
+	if (top.length === 0) {
+		return { ...DEFAULT_COACHING };
+	}
+	return styleFromMeans((key) => avg(top.map((r) => r[key] ?? 50)));
+};
+
+// One player's preferred system: the same comparative-advantage signals,
+// scoped to his own ratings, with shot-selection identity blended into the
+// 3PT dial - a player who *shoots* threes wants a three-heavy system even
+// more than one who merely can.
+export const playerOptimalStyle = (ratings: {
+	[key: string]: unknown;
+}): TeamCoaching => {
+	const style = styleFromMeans((key) => (ratings[key] as number) ?? 50);
+
+	const tendencyThree = ratings.tendencyThree as number | undefined;
+	if (tendencyThree !== undefined) {
+		const tendencySignal = helpers.bound((tendencyThree - 50) / 50, -1, 1);
+		style.threePointTendency = round1(
+			0.6 * style.threePointTendency + 0.4 * tendencySignal,
+		);
+	}
+
+	return style;
+};
+
+// How well a preferred style matches an actual one: 1 = identical dials,
+// 0 = maximally opposed (dials are in [-1, 1]). Used both for coach-vs-roster
+// (hiring) and player-vs-system (chemistry).
+export const philosophyFit = (
+	philosophy: TeamCoaching,
+	target: TeamCoaching,
+) => {
+	const meanDist =
+		DIAL_KEYS.reduce(
+			(sum, key) => sum + Math.abs(philosophy[key] - target[key]),
+			0,
+		) / DIAL_KEYS.length;
+	return 1 - meanDist / 2;
+};
+
+// Per-dial signed differences between a player's preferred style and the
+// team's actual style, largest mismatch first. playerWants is the sign of
+// (preferred - actual): +1 means the player wants more of that dial than the
+// system gives. Drives the chemistry mismatch messages.
+export const fitBreakdown = (
+	preferred: TeamCoaching,
+	actual: TeamCoaching,
+): { dial: keyof TeamCoaching; playerWants: 1 | -1; magnitude: number }[] => {
+	return DIAL_KEYS.map((dial) => {
+		const diff = preferred[dial] - actual[dial];
+		return {
+			dial,
+			playerWants: (diff >= 0 ? 1 : -1) as 1 | -1,
+			magnitude: Math.abs(diff),
+		};
+	}).sort((a, b) => b.magnitude - a.magnitude);
 };
 
 // The season's effective style: blend the coach's philosophy with the roster-optimal

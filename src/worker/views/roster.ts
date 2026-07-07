@@ -12,6 +12,11 @@ import type {
 import { addMood } from "./freeAgents.ts";
 import { getAllCoaches } from "./coachCareer.ts";
 import addFirstNameShort from "../util/addFirstNameShort.ts";
+import {
+	fitBreakdown,
+	philosophyFit,
+	playerOptimalStyle,
+} from "../core/coach/style.ts";
 import { getActualPlayThroughInjuries } from "../core/game/loadTeams.ts";
 import { bySport, isSport } from "../../common/sportFunctions.ts";
 import { orderTeams } from "../util/orderTeams.ts";
@@ -202,6 +207,16 @@ const updateRoster = async (
 		let payroll: number | undefined;
 		let luxuryTaxAmount: number | undefined;
 		let minPayrollAmount: number | undefined;
+		let teamChemistry:
+			| {
+					cohesion: number;
+					topMismatches: {
+						dial: string;
+						playerWants: 1 | -1;
+						magnitude: number;
+					}[];
+			  }
+			| undefined;
 
 		if (inputs.season === g.get("season")) {
 			const schedule = await season.getSchedule();
@@ -263,6 +278,62 @@ const updateRoster = async (
 
 				// Convert ptModifier to string so it doesn't cause unneeded knockout re-rendering
 				p.ptModifier = String(p.ptModifier);
+			}
+
+			// System fit vs the coach's current system, per player plus a
+			// roster-wide chemistry summary. Raw (unfuzzed) ratings - a letter
+			// grade is coarse, and the UI hides it under challengeNoRatings.
+			if (isSport("basketball") && t.coaching) {
+				const coaching = t.coaching;
+				const rawByPid = new Map(playersAll.map((p2) => [p2.pid, p2]));
+
+				let weightSum = 0;
+				let fitSum = 0;
+				const dialSums = new Map<string, number>();
+
+				for (const p of players) {
+					const raw = rawByPid.get(p.pid);
+					const ratings = raw?.ratings.at(-1);
+					if (!ratings) {
+						continue;
+					}
+
+					const preferred = playerOptimalStyle(ratings as any);
+					p.systemFit = philosophyFit(preferred, coaching);
+					// Top style mismatches, for the chemistry messages. Only
+					// meaningful gaps (0.3+ on a [-1, 1] dial).
+					p.fitDetails = fitBreakdown(preferred, coaching)
+						.filter((row) => row.magnitude >= 0.3)
+						.slice(0, 2);
+
+					const weight = Math.max(0, raw!.value ?? 0);
+					weightSum += weight;
+					fitSum += weight * p.systemFit;
+					for (const row of fitBreakdown(preferred, coaching)) {
+						dialSums.set(
+							row.dial,
+							(dialSums.get(row.dial) ?? 0) +
+								weight * row.playerWants * row.magnitude,
+						);
+					}
+				}
+
+				if (weightSum > 0) {
+					const topMismatches = [...dialSums.entries()]
+						.map(([dial, sum]) => ({
+							dial,
+							playerWants: (sum >= 0 ? 1 : -1) as 1 | -1,
+							magnitude: Math.abs(sum) / weightSum,
+						}))
+						.sort((a, b) => b.magnitude - a.magnitude)
+						.filter((row) => row.magnitude >= 0.15)
+						.slice(0, 2);
+
+					teamChemistry = {
+						cohesion: fitSum / weightSum,
+						topMismatches,
+					};
+				}
 			}
 		} else {
 			// Show all players with stats for the given team and year
@@ -421,6 +492,7 @@ const updateRoster = async (
 				!g.get("spectator"),
 			stats,
 			t: t2,
+			teamChemistry,
 			tid: inputs.tid,
 			usePts,
 		};

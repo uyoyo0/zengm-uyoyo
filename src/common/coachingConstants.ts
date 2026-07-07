@@ -50,3 +50,24 @@ export const coachDevEffect = (devRating: number) =>
 // budget levels (neutral DEFAULT_LEVEL).
 export const getNeutralCoachingLevel = () =>
 	isSport("basketball") ? 50 : DEFAULT_LEVEL;
+
+// Player-vs-system fit (philosophyFit output, 0..1) mapped to a signed effect.
+// philosophyFit clusters high (dials are coarse, in [-1, 1]): typical values
+// run ~0.7-0.9, so the effect is centered on the C-grade midpoint of the
+// Coaches page letter scale rather than 0.5. Tune FIT_NEUTRAL/FIT_HALF_RANGE
+// against the distribution guard in coach/style.test.ts.
+export const FIT_NEUTRAL = 0.78;
+export const FIT_HALF_RANGE = 0.16; // FIT_NEUTRAL ± this maps to ±1
+
+export const fitEffect = (fit01: number) =>
+	helpers.bound((fit01 - FIT_NEUTRAL) / FIT_HALF_RANGE, -1, 1);
+
+// Mood component = FIT_MOOD_SCALE * fitEffect -> [-2, 2], like marketSize.
+export const FIT_MOOD_SCALE = 2;
+
+// Max shift of the effective coaching (development) level from system fit:
+// ±10 rating points = ±5% development via coachDevEffect.
+export const FIT_DEV_SHIFT = 10;
+
+export const fitAdjustedCoachingLevel = (level: number, fit01: number) =>
+	helpers.bound(level + FIT_DEV_SHIFT * fitEffect(fit01), 0, 100);
