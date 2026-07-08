@@ -37,13 +37,16 @@ const SHOT_CLOCK = 24;
 const FAST_BREAK_SECONDS = 8;
 // Per-player tendencies (0-100, 50 = neutral). Shot-mix (three/atRim/post) and
 // usage tendencies are NOT gentle nudges: they encode target shares directly
-// (see tendencyShares.basketball.ts) and drive the shot-type and shooter
-// decisions, so a player's simulated volume and shot mix match who he is (a
-// low-tendencyThree star shooter still won't jack threes; a 24-usg% star won't
-// take 35 shots a game). Skill then governs whether shots go in. The pass
-// tendency remains a multiplier, biasing who is credited with assists.
-const TENDENCY_PASS = 0.4; // pass-first (biases who is credited the assist)
+// (see tendencyShares.basketball.ts) and drive the shot-type, shooter, and
+// assist-attribution decisions, so a player's simulated volume, shot mix, and
+// assist volume match who he is (a low-tendencyThree star shooter still won't
+// jack threes; a 24-usg% star won't take 35 shots a game; only a true
+// distributor piles up assists). Skill then governs whether shots go in.
 const PASS_AST_W = 0.25; // pass-first lineups produce more assisted makes
+// Mild skill modulation of assist attribution on top of the pass-tendency
+// share (same shape as usage): ~1.0 at a typical 0.5 passing composite.
+const PASS_SKILL_BASE = 0.7;
+const PASS_SKILL_W = 0.6;
 // Mild skill modulation of shooter selection on top of the usage-tendency
 // share: weight multiplier is USAGE_SKILL_BASE + USAGE_SKILL_W * usage
 // composite, ~1.0 at a typical 0.5 rating.
@@ -59,10 +62,6 @@ const RIM_MIX_CAL = 0.95; // at-rim decision weight (putbacks already add rim FG
 // MIX_SKILL_BASE + MIX_SKILL_W * compositeRating, ~1.0 at a typical 0.5 rating.
 const MIX_SKILL_BASE = 0.6;
 const MIX_SKILL_W = 0.8;
-
-// Convert a 0-100 tendency into a multiplier centered on 1.
-const tendencyFactor = (tendency: number, strength: number) =>
-	1 + (strength * (tendency - 50)) / 50;
 
 // Lineup fit predicates: a "spacer" is a real outside threat who's willing to
 // shoot; a "ball-dominant" player has a high usage tendency.
@@ -2340,7 +2339,9 @@ class GameSim extends GameSimBase {
 			!putBack &&
 			this.numPlayersOnCourt > 1
 		) {
-			passer = this.pickPlayer("passing", this.o, 10, p);
+			// Power 1: the passing weights already encode each player's expected
+			// assist volume (share-calibrated), so no concentration is needed.
+			passer = this.pickPlayer("passing", this.o, 1, p);
 		}
 
 		// Ball is already in frontcourt. How long until the shot goes up?
@@ -3176,8 +3177,27 @@ class GameSim extends GameSimBase {
 					shareFromTendency(p.tendencies.usage, TENDENCY_SHARE.usage, 0.05) *
 					(USAGE_SKILL_BASE + USAGE_SKILL_W * compositeRating);
 			} else if (rating === "passing") {
-				// A pass-first player sets up teammates more.
-				compositeRating *= tendencyFactor(p.tendencies.pass, TENDENCY_PASS);
+				// The pass tendency encodes an assist ratio r: the share of a
+				// player's used possessions ending in an assist (see
+				// tendencyShares). Combined with his usage share s, expected
+				// assists per team possession = s * r / (1 - r); use that directly
+				// as the attribution weight (with mild skill modulation, and
+				// power 1 at the call site) so a real distributor's simulated
+				// assist volume tracks his actual one. The old multiplicative bias
+				// ran through pickPlayer's power-10 amplification (1.4^10 = 29x),
+				// funneling nearly every team assist to one player (15+ apg).
+				const r = Math.min(
+					0.6,
+					shareFromTendency(p.tendencies.pass, TENDENCY_SHARE.pass, 0.02),
+				);
+				const s = shareFromTendency(
+					p.tendencies.usage,
+					TENDENCY_SHARE.usage,
+					0.05,
+				);
+				compositeRating =
+					((s * r) / (1 - r)) *
+					(PASS_SKILL_BASE + PASS_SKILL_W * compositeRating);
 			}
 
 			const value = (compositeRating * this.fatigue(p.stat.energy)) ** power;

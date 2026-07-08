@@ -122,10 +122,13 @@ const deriveTendencies = (
 	// Pass-first: assist ratio = share of a player's used possessions that end in
 	// an assist rather than his own shot. Unlike raw AST% (which just tracks ball
 	// dominance, so high-usage scorers like SGA score high), this nets out a
-	// player's own shooting volume, so only true distributors rate highly.
+	// player's own shooting volume, so only true distributors rate highly. Like
+	// the shot mix, the sim inverts this mapping when crediting assists, so a
+	// real distributor's simulated assist volume tracks his actual one.
 	const usedPoss = sumFga + 0.44 * sumFta + sumAst + sumTov;
 	if (sumFga >= MIN_FGA && usedPoss > 0) {
-		tendencies.tendencyPass = signal(sumAst / usedPoss, 0.17, 210);
+		const m = TENDENCY_SHARE.pass;
+		tendencies.tendencyPass = signal(sumAst / usedPoss, m.pivot, m.slope);
 	}
 
 	// Interior shot selection (only the 2-point shot mix; threes are decided

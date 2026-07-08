@@ -29,6 +29,11 @@ export const TENDENCY_SHARE = {
 	// fraction). 20% is league average by construction; ~34% is an MVP-level
 	// ball-dominant scorer, and the all-time record seasons are ~38-41%.
 	usage: { pivot: 0.2, slope: 180 },
+	// Pass-first: assist ratio - the share of a player's used possessions
+	// (FGA + 0.44*FTA + AST + TOV) that end in an assist rather than his own
+	// shot. ~17% is league-typical; a pure point guard runs ~35-45%, and a
+	// 100 tendency decodes to ~41% (all-time distributor seasons).
+	pass: { pivot: 0.17, slope: 210 },
 } satisfies Record<string, ShareMapping>;
 
 export const tendencyFromShare = (share: number, mapping: ShareMapping) =>

@@ -373,6 +373,50 @@ test("tendency: pass first raises assist rate", async () => {
 	assert(astRate(a) > astRate(b) * 1.05);
 });
 
+test("tendency: assist attribution is calibrated, not winner-take-all", async () => {
+	// One elite distributor (pass tendency 90 decodes to ~36% assist ratio, an
+	// all-time-great distributor season) among lower-pass teammates. The old
+	// multiplicative bias ran through pickPlayer's power-10 amplification and
+	// funneled nearly every team assist to one player (15+ apg).
+	const makeDistributor = (tendencyPass: number) => (players: any[]) => {
+		const r = players[0].ratings.at(-1)!;
+		r.pss = 85;
+		r.oiq = 80;
+		r.tendencyPass = tendencyPass;
+		for (let i = 1; i < players.length; i++) {
+			players[i].ratings.at(-1)!.tendencyPass = 40;
+		}
+	};
+	const n = 40;
+	const [totalsHi, , players] = await run({
+		patch0: makeDistributor(90),
+		patch1: makeDistributor(50),
+		n,
+	});
+	const topAst = (m: Map<number, PlayerAgg>) =>
+		[...m.values()].reduce((best, p) => (p.ast > best.ast ? p : best));
+	const hi = topAst(players[0]);
+	const control = topAst(players[1]);
+	const apg = hi.ast / n;
+	const teamApg = totalsHi.ast / n;
+	const share = hi.ast / totalsHi.ast;
+	report(
+		`[assist attribution] tendency 90: ${apg.toFixed(1)} apg (${pct(share)} of ${teamApg.toFixed(1)} team apg) in ${(hi.min / n).toFixed(1)} mpg | tendency 50 control: ${(control.ast / n).toFixed(1)} apg`,
+	);
+	// Historical range for a dominant distributor: ~10-14.5 apg at extreme
+	// minutes, ~35-50% of team assists. Well below that here because he plays
+	// a rotation's minutes, but must lead comfortably.
+	assert(apg >= 4 && apg <= 13, `distributor apg out of band: ${apg}`);
+	assert(
+		share > 0.18 && share < 0.55,
+		`distributor share of team assists out of band: ${share}`,
+	);
+	assert(
+		hi.ast > control.ast * 1.1,
+		`pass tendency should lift assist volume: ${hi.ast} vs ${control.ast}`,
+	);
+});
+
 // Aggregate realism bands, shared by the neutral test and the tendency-noise
 // test. Wide bands: catch true pathologies, not era/roster-dependent style.
 // (3PA rate spans ~3%-45% historically; these synthetic rosters shoot few 3s.)
