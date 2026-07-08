@@ -90,10 +90,48 @@ export const philosophyFit = (
 	return 1 - meanDist / 2;
 };
 
-// Per-dial signed differences between a player's preferred style and the
-// team's actual style, largest mismatch first. playerWants is the sign of
-// (preferred - actual): +1 means the player wants more of that dial than the
-// system gives. Drives the chemistry mismatch messages.
+// Player-vs-system distance for one dial, with directional slack: when the
+// player's preference and the system agree in sign, a magnitude gap is not a
+// conflict (being asked to do MORE of what you're good at is fine) - player
+// preferences are comparative-advantage signals and rarely reach the extremes
+// a committed coach's dials do, so without slack a shooter-loaded roster
+// under a max-3PT coach would read as "wants fewer threes" on every player.
+// Only opposed directions, or an extreme system vs an indifferent player,
+// register as mismatch.
+const SAME_SIGN_SLACK = 0.5;
+
+const dialMismatch = (preferred: number, actual: number) => {
+	const diff = Math.abs(preferred - actual);
+	if (preferred === 0 || actual === 0 || Math.sign(preferred) === Math.sign(actual)) {
+		return Math.max(0, diff - SAME_SIGN_SLACK);
+	}
+	return diff;
+};
+
+// How well a player's preferred style fits the team's actual system, 0..1.
+// Directional (see dialMismatch), unlike philosophyFit (which compares two
+// like-constructed optimal-style vectors for coach hiring). MISMATCH_SCALE
+// re-centers the distribution near philosophyFit's (~0.78 typical) so the
+// shared letter-grade bands and FIT_NEUTRAL apply to both; tune it against
+// the distribution guard in style.test.ts.
+const MISMATCH_SCALE = 1.6;
+
+export const playerSystemFit = (
+	preferred: TeamCoaching,
+	actual: TeamCoaching,
+) => {
+	const meanDist =
+		DIAL_KEYS.reduce(
+			(sum, key) => sum + dialMismatch(preferred[key], actual[key]),
+			0,
+		) / DIAL_KEYS.length;
+	return helpers.bound(1 - (meanDist * MISMATCH_SCALE) / 2, 0, 1);
+};
+
+// Per-dial mismatches between a player's preferred style and the team's
+// actual style (directional, see dialMismatch), largest first. playerWants is
+// the sign of (preferred - actual): +1 means the player wants more of that
+// dial than the system gives. Drives the chemistry mismatch messages.
 export const fitBreakdown = (
 	preferred: TeamCoaching,
 	actual: TeamCoaching,
@@ -103,7 +141,7 @@ export const fitBreakdown = (
 		return {
 			dial,
 			playerWants: (diff >= 0 ? 1 : -1) as 1 | -1,
-			magnitude: Math.abs(diff),
+			magnitude: dialMismatch(preferred[dial], actual[dial]),
 		};
 	}).sort((a, b) => b.magnitude - a.magnitude);
 };

@@ -2,8 +2,8 @@ import { assert, beforeAll, describe, test } from "vitest";
 import {
 	fitBreakdown,
 	matchupAdjust,
-	philosophyFit,
 	playerOptimalStyle,
+	playerSystemFit,
 } from "./style.ts";
 import genPhilosophy from "./genPhilosophy.ts";
 import { player } from "../index.ts";
@@ -78,6 +78,62 @@ describe("fitBreakdown", () => {
 		assert.strictEqual(breakdown[1]!.dial, "pace");
 		assert.strictEqual(breakdown[1]!.playerWants, -1);
 	});
+
+	test("same-direction gaps are not mismatches", () => {
+		// A shooter (preferred +0.5) under a max-3PT coach (+1.0): asked to do
+		// MORE of what he's good at - no conflict.
+		const preferred = { ...DEFAULT_COACHING, threePointTendency: 0.5 };
+		const actual = { ...DEFAULT_COACHING, threePointTendency: 1 };
+		const breakdown = fitBreakdown(preferred, actual);
+		assert.strictEqual(
+			breakdown.find((row) => row.dial === "threePointTendency")!.magnitude,
+			0,
+		);
+	});
+});
+
+describe("playerSystemFit", () => {
+	test("shooter-loaded five under a max-3PT coach reads as a good fit", () => {
+		// The reported bug: a starting five of elite shooters with a coach who
+		// emphasizes threes showed "Bombs away by design, bricks by personnel".
+		// Elite well-rounded shooters have comparative-advantage 3PT signals of
+		// ~+0.4-0.6, well short of a committed coach's +1.0 dial - which must
+		// read as harmony, not mismatch.
+		const shooter = playerOptimalStyle({
+			tp: 85,
+			spd: 65,
+			dnk: 60,
+			reb: 55,
+			hgt: 60,
+			diq: 60,
+			tendencyThree: 85,
+		});
+		assert(shooter.threePointTendency > 0);
+		assert(shooter.threePointTendency < 1);
+
+		const threeHappySystem = {
+			...DEFAULT_COACHING,
+			threePointTendency: 1,
+			pace: 0.3,
+		};
+		const fit = playerSystemFit(shooter, threeHappySystem);
+		assert(fit >= 0.82, `shooter under 3PT coach should grade B+: ${fit}`);
+
+		// And no 3PT mismatch message material.
+		const breakdown = fitBreakdown(shooter, threeHappySystem);
+		const three = breakdown.find((row) => row.dial === "threePointTendency")!;
+		assert.strictEqual(three.magnitude, 0);
+
+		// The same shooter under an opposed, paint-first system is a bad fit.
+		const paintSystem = {
+			...DEFAULT_COACHING,
+			threePointTendency: -1,
+			crashOffensiveGlass: 0.8,
+			paintDefense: 0.8,
+		};
+		const badFit = playerSystemFit(shooter, paintSystem);
+		assert(badFit < fit - 0.1, `opposed system should fit worse: ${badFit}`);
+	});
 });
 
 describe("fitEffect / fitAdjustedCoachingLevel", () => {
@@ -147,7 +203,7 @@ describe("fit distribution", () => {
 		for (const p of players) {
 			const preferred = playerOptimalStyle(p.ratings.at(-1));
 			for (const philosophy of philosophies) {
-				const effect = fitEffect(philosophyFit(preferred, philosophy));
+				const effect = fitEffect(playerSystemFit(preferred, philosophy));
 				sum += effect;
 				n += 1;
 				if (effect > 0) {

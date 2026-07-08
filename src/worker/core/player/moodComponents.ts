@@ -7,7 +7,7 @@ import { g, helpers, local } from "../../util/index.ts";
 import { getNegotiationPids } from "../../views/negotiationList.ts";
 import { getNumPlayersTradedAwayNormalized } from "./getNumPlayersTradedAwayNormalized.ts";
 import { isSport } from "../../../common/sportFunctions.ts";
-import { philosophyFit, playerOptimalStyle } from "../coach/style.ts";
+import { playerOptimalStyle, playerSystemFit } from "../coach/style.ts";
 import { FIT_MOOD_SCALE, fitEffect } from "../../../common/coachingConstants.ts";
 import { defaultGameAttributes } from "../../../common/defaultGameAttributes.ts";
 
@@ -327,7 +327,7 @@ const moodComponents = async (
 		if (isSport("basketball") && t.coaching) {
 			const ratings = p.ratings.at(-1);
 			if (ratings) {
-				const fit = philosophyFit(
+				const fit = playerSystemFit(
 					playerOptimalStyle(ratings as any),
 					t.coaching,
 				);

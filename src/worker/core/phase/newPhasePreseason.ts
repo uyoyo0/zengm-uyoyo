@@ -20,7 +20,7 @@ import type {
 	TeamCoaching,
 	TeamSeason,
 } from "../../../common/types.ts";
-import { philosophyFit, playerOptimalStyle } from "../coach/style.ts";
+import { playerOptimalStyle, playerSystemFit } from "../coach/style.ts";
 import { fitAdjustedCoachingLevel } from "../../../common/coachingConstants.ts";
 import { groupByUnique, maxBy } from "../../../common/utils.ts";
 import { applyRealTeamInfo } from "../../../common/applyRealTeamInfo.ts";
@@ -434,7 +434,7 @@ const newPhasePreseason = async (
 			if (teamCoaching && coachingLevel !== undefined) {
 				const ratings = p.ratings.at(-1);
 				if (ratings) {
-					const fit = philosophyFit(
+					const fit = playerSystemFit(
 						playerOptimalStyle(ratings as any),
 						teamCoaching,
 					);

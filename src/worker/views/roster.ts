@@ -14,8 +14,8 @@ import { getAllCoaches } from "./coachCareer.ts";
 import addFirstNameShort from "../util/addFirstNameShort.ts";
 import {
 	fitBreakdown,
-	philosophyFit,
 	playerOptimalStyle,
+	playerSystemFit,
 } from "../core/coach/style.ts";
 import { getActualPlayThroughInjuries } from "../core/game/loadTeams.ts";
 import { bySport, isSport } from "../../common/sportFunctions.ts";
@@ -299,7 +299,7 @@ const updateRoster = async (
 					}
 
 					const preferred = playerOptimalStyle(ratings as any);
-					p.systemFit = philosophyFit(preferred, coaching);
+					p.systemFit = playerSystemFit(preferred, coaching);
 					// Top style mismatches, for the chemistry messages. Only
 					// meaningful gaps (0.3+ on a [-1, 1] dial).
 					p.fitDetails = fitBreakdown(preferred, coaching)
