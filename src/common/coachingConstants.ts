@@ -31,6 +31,15 @@ export const COACHING = {
 	// Maximum per-matchup dial tweak (at tactics = 100) vs the opponent profile.
 	MATCHUP_MAX: 0.5,
 
+	// Playoff coaching: a playoff series gives coaches prep time and film, so
+	// the matchup adjustment channel is amplified - game 1 of a series starts
+	// at PLAYOFF_MATCHUP_BASE x the regular-season weight, and each further
+	// game into the series adds PLAYOFF_SERIES_LEARN (game 7 = 1.85x). Since
+	// the adjustment scales with the coach's tactics, this compounds the
+	// better tactician's edge as a series goes deeper.
+	PLAYOFF_MATCHUP_BASE: 1.25,
+	PLAYOFF_SERIES_LEARN: 0.1,
+
 	// Coach motivation (0-100, 50 = neutral) scales how fast benched players
 	// recover energy: motivated teams stay fresh late in games.
 	MOTIVATION_RECOVERY: 0.3,
@@ -71,3 +80,9 @@ export const FIT_DEV_SHIFT = 10;
 
 export const fitAdjustedCoachingLevel = (level: number, fit01: number) =>
 	helpers.bound(level + FIT_DEV_SHIFT * fitEffect(fit01), 0, 100);
+
+// Multiplier on the matchup-adjustment weight for game N of a playoff series
+// (1-indexed; game 1 = prep-time boost only, deeper games add film study).
+export const playoffMatchupWeight = (gameNum: number) =>
+	COACHING.PLAYOFF_MATCHUP_BASE +
+	COACHING.PLAYOFF_SERIES_LEARN * helpers.bound(gameNum - 1, 0, 6);

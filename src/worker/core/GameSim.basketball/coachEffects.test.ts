@@ -1,11 +1,14 @@
 import { assert, test } from "vitest";
 import GameSim from "./index.ts";
 import { player, team } from "../index.ts";
-import loadTeams from "../game/loadTeams.ts";
+import loadTeams, { getPlayoffMatchupWeight } from "../game/loadTeams.ts";
 import { g, helpers } from "../../util/index.ts";
 import { resetCache, resetG } from "../../../test/helpers.ts";
-import { coachDevEffect } from "../../../common/coachingConstants.ts";
-import { DEFAULT_COACHING, PLAYER } from "../../../common/constants.ts";
+import {
+	coachDevEffect,
+	playoffMatchupWeight,
+} from "../../../common/coachingConstants.ts";
+import { DEFAULT_COACHING, PHASE, PLAYER } from "../../../common/constants.ts";
 import { range } from "../../../common/utils.ts";
 import { idb } from "../../db/index.ts";
 import ovr from "../coach/ovr.ts";
@@ -72,6 +75,7 @@ const runWithCoaches = async ({
 	dials0,
 	dials1,
 	basePatch,
+	prepare,
 	n = 100,
 }: {
 	coach0: CoachWithoutKey;
@@ -82,6 +86,9 @@ const runWithCoaches = async ({
 	dials1?: Partial<TeamCoaching>;
 	// Applied to the shared base roster before cloning (both teams identical).
 	basePatch?: (players: any[]) => void;
+	// Runs after the cache is set up, before games (e.g. put the league in the
+	// playoffs with a series at a given game number).
+	prepare?: () => Promise<void>;
 	n?: number;
 }) => {
 	resetG();
@@ -125,6 +132,8 @@ const runWithCoaches = async ({
 			: seasonStyle(c as Coach, rosterOptimalStyle(players));
 		await idb.cache.teams.put(t!);
 	}
+
+	await prepare?.();
 
 	const wins = [0, 0];
 	const pts = [0, 0];
@@ -234,6 +243,138 @@ test("tactics exploits a skewed opponent (vs 3PT-heavy league)", async () => {
 	});
 	report(`[tactics vs shooters] 90-vs-10 win%: ${pct(p)} (${record})`);
 	assert(p > 0.46, `tactics should not hurt vs a skewed opponent: ${p}`);
+}, 600000);
+
+// Put the cache's league into the playoffs with a series between tids 0 and 1
+// at the given wins (so the next game is game homeWon+awayWon+1).
+const setPlayoffSeries = async (homeWon: number, awayWon: number) => {
+	g.setWithoutSavingToDB("phase", PHASE.PLAYOFFS);
+	const existing = await idb.cache.playoffSeries.get(g.get("season"));
+	if (existing) {
+		await idb.cache.playoffSeries.delete(existing.season);
+	}
+	await idb.cache.playoffSeries.add({
+		season: g.get("season"),
+		currentRound: 0,
+		series: [
+			[
+				{
+					home: { tid: 0, cid: 0, seed: 1, won: homeWon },
+					away: { tid: 1, cid: 0, seed: 2, won: awayWon },
+				},
+			],
+		],
+	} as any);
+};
+
+test("playoffs: matchup weight tracks the series game number", async () => {
+	resetG();
+	g.setWithoutSavingToDB("season", 2016);
+	await resetCache({});
+
+	// Regular season: no amplification.
+	assert.strictEqual(await getPlayoffMatchupWeight([0, 1]), 1);
+
+	// Game 1 of a series: prep-time boost only.
+	await setPlayoffSeries(0, 0);
+	assert.strictEqual(
+		await getPlayoffMatchupWeight([0, 1]),
+		playoffMatchupWeight(1),
+	);
+
+	// Game 7, and tid order doesn't matter.
+	await setPlayoffSeries(3, 3);
+	assert.strictEqual(
+		await getPlayoffMatchupWeight([0, 1]),
+		playoffMatchupWeight(7),
+	);
+	assert.strictEqual(
+		await getPlayoffMatchupWeight([1, 0]),
+		playoffMatchupWeight(7),
+	);
+
+	// Playoffs but these teams have no series (e.g. play-in): base prep boost.
+	assert.strictEqual(
+		await getPlayoffMatchupWeight([0, 5]),
+		playoffMatchupWeight(1),
+	);
+});
+
+test("playoffs: loadTeams applies amplified adjustments by game 7", async () => {
+	// Deterministic: for a fixed cache, the dial adjustments are a pure
+	// function of rosters + tactics + matchup weight, so game 7's adjustment
+	// must be strictly larger than the regular-season one.
+	resetG();
+	g.setWithoutSavingToDB("season", 2016);
+
+	const base = range(PER_TEAM).map((i) => {
+		const p: any = player.generate(0, 25, 2010, true, 50);
+		p.rosterOrder = i;
+		return p;
+	});
+	// Opponent heavily perimeter-reliant, so the high-tactics coach's paint
+	// defense adjustment has a strong, known direction (guard the arc).
+	for (const p of base) {
+		p.ratings.at(-1).tp = 90;
+		p.ratings.at(-1).tendencyThree = 90;
+		p.ratings.at(-1).ins = 20;
+	}
+	const players0 = base.map((p) => clonePlayer(p, 0));
+	const players1 = base.map((p) => clonePlayer(p, 1));
+
+	const teamsDefault = helpers.getTeamsDefault().slice(0, 2);
+	await resetCache({
+		players: [...players0, ...players1],
+		coaches: [makeCoach(0, { tactics: 100 }), makeCoach(1, { tactics: 100 })],
+		teams: teamsDefault.map(team.generate),
+		teamSeasons: teamsDefault.map((t) => team.genSeasonRow(t)),
+		teamStats: teamsDefault.map((t) => team.genStatsRow(t.tid)),
+	});
+	for (const p of await idb.cache.players.getAll()) {
+		await player.updateValues(p);
+		await idb.cache.players.put(p);
+	}
+	for (const tid of [0, 1]) {
+		const t = await idb.cache.teams.get(tid);
+		t!.coaching = { ...DEFAULT_COACHING };
+		await idb.cache.teams.put(t!);
+	}
+
+	const regular = (await loadTeams([0, 1], {}))[0]!.coaching;
+	await setPlayoffSeries(3, 3);
+	const game7 = (await loadTeams([0, 1], {}))[0]!.coaching;
+
+	report(
+		`[playoff coaching] paintDefense adjustment: regular=${regular.paintDefense} game7=${game7.paintDefense}`,
+	);
+	// Vs a perimeter team, coaches guard the arc (negative paintDefense);
+	// the game-7 adjustment is amplified.
+	assert(regular.paintDefense < 0, `expected < 0: ${regular.paintDefense}`);
+	assert(
+		game7.paintDefense < regular.paintDefense,
+		`game 7 should adjust harder: ${game7.paintDefense} vs ${regular.paintDefense}`,
+	);
+});
+
+test("playoffs: tactics edge persists in a game 7 (tripwire)", async () => {
+	// Stochastic sanity check on top of the deterministic dial test: the
+	// high-tactics coach should still clearly win a game 7 against a skewed
+	// opponent with the amplified channel. Loose band - the precise
+	// amplification is asserted deterministically above.
+	const makeShooters = (players: any[]) => {
+		for (const p of players) {
+			p.ratings.at(-1).tp = 75;
+			p.ratings.at(-1).tendencyThree = 85;
+		}
+	};
+	const { winPct: p, record } = await pooledWinPct({
+		coach0: makeCoach(0, { tactics: 90 }),
+		coach1: makeCoach(1, { tactics: 10 }),
+		basePatch: makeShooters,
+		prepare: () => setPlayoffSeries(3, 3),
+	});
+	report(`[playoff game 7] tactics 90-vs-10 win%: ${pct(p)} (${record})`);
+	assert(p > 0.48, `playoff tactics edge collapsed: ${p}`);
 }, 600000);
 
 test("adaptability rescues a philosophy that clashes with the roster", async () => {

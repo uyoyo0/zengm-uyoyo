@@ -13,6 +13,7 @@ import {
 	PHASE,
 } from "../../../common/constants.ts";
 import playThroughInjuriesFactor from "../../../common/playThroughInjuriesFactor.ts";
+import { playoffMatchupWeight } from "../../../common/coachingConstants.ts";
 import { bySport, isSport } from "../../../common/sportFunctions.ts";
 import { last } from "../../../common/utils.ts";
 
@@ -533,19 +534,43 @@ const loadTeams = async (tids: number[], conditions: Conditions) => {
 	return teams;
 };
 
+// In the playoffs, coaches get prep time and film on one opponent, so the
+// matchup channel is amplified, growing with each game of the series. Returns
+// the weight multiplier for this game (1 = regular season).
+export const getPlayoffMatchupWeight = async (tids: [number, number]) => {
+	if (g.get("phase") !== PHASE.PLAYOFFS) {
+		return 1;
+	}
+
+	let gameNum = 1;
+	const playoffSeries = await idb.cache.playoffSeries.get(g.get("season"));
+	const series = playoffSeries?.series[playoffSeries.currentRound]?.find(
+		(matchup) =>
+			matchup.away &&
+			((matchup.home.tid === tids[0] && matchup.away.tid === tids[1]) ||
+				(matchup.home.tid === tids[1] && matchup.away.tid === tids[0])),
+	);
+	if (series?.away) {
+		gameNum = series.home.won + series.away.won + 1;
+	}
+
+	return playoffMatchupWeight(gameNum);
+};
+
 // Adjust each team's loaded coaching dials based on the opponent's roster, scaled
 // by the team's coach's tactics rating.
 const applyMatchupAdjustments = async (
 	tids: [number, number],
 	teams: Record<number, any>,
 ) => {
-	const [coaches, rosters] = await Promise.all([
+	const [coaches, rosters, matchupWeight] = await Promise.all([
 		Promise.all(
 			tids.map((tid) => idb.cache.coaches.indexGetAll("coachesByTid", tid)),
 		),
 		Promise.all(
 			tids.map((tid) => idb.cache.players.indexGetAll("playersByTid", tid)),
 		),
+		getPlayoffMatchupWeight(tids),
 	]);
 
 	// Only players available tonight (healthy).
@@ -568,6 +593,7 @@ const applyMatchupAdjustments = async (
 			t.coaching,
 			tactics,
 			coach.opponentProfile(available[1 - i]!),
+			matchupWeight,
 		);
 	}
 };

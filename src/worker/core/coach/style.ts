@@ -176,13 +176,18 @@ export const availabilityAdjust = (
 };
 
 // Per-matchup adjustment: a high-tactics coach tweaks the dials to exploit the
-// opponent. Ephemeral (applied at game time, not stored).
+// opponent. Ephemeral (applied at game time, not stored). weightMult amplifies
+// the channel in the playoffs (prep time + film study, see
+// playoffMatchupWeight) - since it scales with tactics, it compounds the
+// better tactician's edge as a series goes deeper.
 export const matchupAdjust = (
 	style: TeamCoaching,
 	tactics: number,
 	opp: OpponentProfile,
+	weightMult = 1,
 ): TeamCoaching => {
-	const scale = helpers.bound(tactics / 100, 0, 1) * COACHING.MATCHUP_MAX;
+	const scale =
+		helpers.bound(tactics / 100, 0, 1) * COACHING.MATCHUP_MAX * weightMult;
 	return {
 		...style,
 		// Pack the paint vs. interior teams; guard the arc vs. shooting teams.

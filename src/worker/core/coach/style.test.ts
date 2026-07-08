@@ -1,6 +1,7 @@
 import { assert, beforeAll, describe, test } from "vitest";
 import {
 	fitBreakdown,
+	matchupAdjust,
 	philosophyFit,
 	playerOptimalStyle,
 } from "./style.ts";
@@ -9,10 +10,12 @@ import { player } from "../index.ts";
 import { resetG } from "../../../test/helpers.ts";
 import { DEFAULT_COACHING } from "../../../common/constants.ts";
 import {
+	COACHING,
 	FIT_NEUTRAL,
 	coachDevEffect,
 	fitAdjustedCoachingLevel,
 	fitEffect,
+	playoffMatchupWeight,
 } from "../../../common/coachingConstants.ts";
 import { range } from "../../../common/utils.ts";
 
@@ -89,6 +92,36 @@ describe("fitEffect / fitAdjustedCoachingLevel", () => {
 		assert.strictEqual(coachDevEffect(60), 0.05);
 		assert.strictEqual(fitAdjustedCoachingLevel(95, 1), 100);
 		assert.strictEqual(fitAdjustedCoachingLevel(5, 0), 0);
+	});
+});
+
+describe("playoff coaching", () => {
+	test("playoffMatchupWeight grows with series depth and clamps", () => {
+		assert.strictEqual(playoffMatchupWeight(1), COACHING.PLAYOFF_MATCHUP_BASE);
+		assert(playoffMatchupWeight(7) > playoffMatchupWeight(2));
+		assert.strictEqual(
+			playoffMatchupWeight(7),
+			COACHING.PLAYOFF_MATCHUP_BASE + 6 * COACHING.PLAYOFF_SERIES_LEARN,
+		);
+		// Weird inputs clamp instead of exploding.
+		assert.strictEqual(playoffMatchupWeight(0), playoffMatchupWeight(1));
+		assert.strictEqual(playoffMatchupWeight(99), playoffMatchupWeight(7));
+	});
+
+	test("matchupAdjust weightMult scales the dial deltas", () => {
+		const opp = {
+			threeReliance: 0,
+			interiorReliance: 1,
+			ballHandling: 0,
+			defReb: 0,
+		};
+		const base = { ...DEFAULT_COACHING };
+		const regular = matchupAdjust(base, 100, opp, 1);
+		const game7 = matchupAdjust(base, 100, opp, playoffMatchupWeight(7));
+		// Packing the paint vs an interior team: the playoff adjustment is
+		// bigger than the regular-season one.
+		assert(regular.paintDefense > 0);
+		assert(game7.paintDefense > regular.paintDefense);
 	});
 });
 
