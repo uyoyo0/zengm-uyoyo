@@ -149,6 +149,18 @@ export const frivolities: Record<string, Frivolity[]> = {
 							"The two-man combos with the highest career net rating together.",
 					},
 					{
+						urlParts: ["lineups", "duos_season"],
+						name: "Best Single-Season Duos",
+						description:
+							"The two-man combos with the highest net rating together in one season.",
+					},
+					{
+						urlParts: ["lineups", "trios"],
+						name: "Best Trios",
+						description:
+							"The three-man combos with the highest career net rating together.",
+					},
+					{
 						urlParts: ["lineups", "duos_minutes"],
 						name: "Most Minutes Together",
 						description:

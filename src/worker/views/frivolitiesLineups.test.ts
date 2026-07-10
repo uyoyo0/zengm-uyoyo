@@ -118,4 +118,76 @@ describe("frivolitiesLineups", () => {
 			assert.strictEqual(row.net, 2.5);
 		}
 	});
+
+	test("trios aggregate three-man combos with a lower floor", async () => {
+		const result = (await updateFrivolitiesLineups(
+			{ type: "trios" } as any,
+			["firstRun"],
+			{},
+		))!;
+		if (result.mode !== "duo") {
+			throw new Error("Wrong mode");
+		}
+		assert.strictEqual((result as any).comboLabel, "Trio");
+
+		// Trios entirely within players 2-5 (C(4,3) = 4 of them) have 2000
+		// minutes; all others include player 1 or 6 and have only 1000, which is
+		// exactly the 1000-minute floor - so those qualify too. Unit A trios
+		// with player 1 net +10; unit B trios with player 6 net -5; the shared
+		// 2-5 trios blend to +2.5 over 2000 minutes.
+		const shared = result.rows.filter((row) => Math.round(row.min) === 2000);
+		assert.strictEqual(shared.length, 4);
+		for (const row of shared) {
+			assert.strictEqual(row.players.length, 3);
+			assert.strictEqual(row.net, 2.5);
+		}
+		// Best trios are the unit-A-only ones at +10.
+		assert.strictEqual(Math.round(result.rows[0]!.net), 10);
+	});
+
+	test("single-season duos are scoped to one season", async () => {
+		// Add a second season where players 2-3 play together much better.
+		await idb.cache.lineups.add({
+			tid: 0,
+			season: 2015,
+			playoffs: false,
+			pids: [2, 3, 7, 8, 9],
+			stats: {
+				...emptyLineupStats(),
+				min: 900,
+				poss: 1800,
+				oppPoss: 1800,
+				pts: 2100,
+				oppPts: 1800,
+			},
+		} as any);
+
+		const result = (await updateFrivolitiesLineups(
+			{ type: "duos_season" } as any,
+			["firstRun"],
+			{},
+		))!;
+		if (result.mode !== "seasonDuo") {
+			throw new Error("Wrong mode");
+		}
+
+		// The 2015 pair 2-3 (+16.7 net) beats every 2016 pair, and appears as a
+		// separate row from their 2016 season together.
+		const top = result.rows[0]!;
+		assert.strictEqual(top.season, 2015);
+		assert.deepStrictEqual(
+			top.players.map((p: any) => p.pid).toSorted((a: number, b: number) => a - b),
+			[2, 3],
+		);
+		assert(top.net > 15 && top.net < 18, `${top.net}`);
+		assert(
+			result.rows.some(
+				(row) =>
+					row.season === 2016 &&
+					row.players.some((p: any) => p.pid === 2) &&
+					row.players.some((p: any) => p.pid === 3),
+			),
+			"2016 pair 2-3 should be its own row",
+		);
+	});
 });

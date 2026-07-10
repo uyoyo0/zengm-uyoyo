@@ -110,34 +110,157 @@ const updateFrivolitiesLineups = async (
 			};
 		}
 
-		if (type === "duos" || type === "duos_minutes") {
-			const byNet = type === "duos";
-			const minMinutes = 1500 * scale;
+		if (type === "duos" || type === "duos_minutes" || type === "trios") {
+			const comboSize = type === "trios" ? 3 : 2;
+			const byNet = type !== "duos_minutes";
+			// Trios share the floor less than duos, so a lower floor.
+			const minMinutes = (comboSize === 3 ? 1000 : 1500) * scale;
 
-			// Career totals for every pair of teammates, from the 10 pairs in each
-			// 5-man row. Regular season only.
-			const pairs = new Map<
-				string,
-				{
-					pids: [number, number];
-					min: number;
-					poss: number;
-					oppPoss: number;
-					pts: number;
-					oppPts: number;
-					seasons: Set<number>;
-					lastTid: number;
-					lastSeason: number;
+			// Career totals for every pair (10 per 5-man row) or trio (10 per row)
+			// of teammates. Regular season only.
+			type Combo = {
+				pids: number[];
+				min: number;
+				poss: number;
+				oppPoss: number;
+				pts: number;
+				oppPts: number;
+				seasons: Set<number>;
+				lastTid: number;
+				lastSeason: number;
+			};
+			const combos = new Map<string, Combo>();
+
+			const accumulate = (l: Lineup, pids: number[]) => {
+				const key = pids.join("-");
+				let combo = combos.get(key);
+				if (!combo) {
+					combo = {
+						pids,
+						min: 0,
+						poss: 0,
+						oppPoss: 0,
+						pts: 0,
+						oppPts: 0,
+						seasons: new Set(),
+						lastTid: l.tid,
+						lastSeason: l.season,
+					};
+					combos.set(key, combo);
 				}
-			>();
+				combo.min += l.stats.min;
+				combo.poss += l.stats.poss;
+				combo.oppPoss += l.stats.oppPoss;
+				combo.pts += l.stats.pts;
+				combo.oppPts += l.stats.oppPts;
+				combo.seasons.add(l.season);
+				if (l.season >= combo.lastSeason) {
+					combo.lastSeason = l.season;
+					combo.lastTid = l.tid;
+				}
+			};
+
 			await forEachSeasonLineups((seasonRows) => {
+				for (const l of seasonRows) {
+					if (l.playoffs) {
+						continue;
+					}
+					const p = l.pids;
+					for (let i = 0; i < p.length; i++) {
+						for (let j = i + 1; j < p.length; j++) {
+							if (comboSize === 2) {
+								accumulate(l, [p[i]!, p[j]!]);
+							} else {
+								for (let m = j + 1; m < p.length; m++) {
+									accumulate(l, [p[i]!, p[j]!, p[m]!]);
+								}
+							}
+						}
+					}
+				}
+			});
+
+			const qualified = [...combos.values()].filter(
+				(combo) => combo.min >= minMinutes,
+			);
+			const net = (combo: Combo) =>
+				(combo.poss > 0 ? (100 * combo.pts) / combo.poss : 0) -
+				(combo.oppPoss > 0 ? (100 * combo.oppPts) / combo.oppPoss : 0);
+			const top = orderBy(
+				qualified,
+				byNet ? [net, (combo) => combo.min] : [(combo) => combo.min, net],
+				["desc", "desc"],
+			).slice(0, MAX_ROWS);
+
+			const getPlayer = await resolveNames(top.flatMap((combo) => combo.pids));
+
+			const title =
+				type === "trios"
+					? "Best Trios"
+					: byNet
+						? "Best Duos"
+						: "Most Minutes Together";
+			return {
+				type,
+				title,
+				description:
+					type === "trios"
+						? `The three-man combos with the highest career net rating on the floor together (min ${Math.round(minMinutes)} minutes).`
+						: byNet
+							? `The two-man combos with the highest career net rating on the floor together (min ${Math.round(minMinutes)} minutes).`
+							: `The two-man combos who spent the most career minutes on the floor together (min ${Math.round(minMinutes)} minutes).`,
+				mode: "duo" as const,
+				comboLabel: comboSize === 3 ? "Trio" : "Duo",
+				userTid,
+				rows: top.map((combo) => ({
+					players: combo.pids.map(getPlayer),
+					tid: combo.lastTid,
+					abbrev: abbrev(combo.lastTid),
+					numSeasons: combo.seasons.size,
+					lastSeason: combo.lastSeason,
+					min: combo.min,
+					net: net(combo),
+				})),
+			};
+		}
+
+		if (type === "duos_season") {
+			const minMinutes = 500 * scale;
+
+			// Best single-season duos by net rating. Pairs are aggregated within
+			// each season batch (across teams if traded together), then only the
+			// running top rows are kept.
+			let results: {
+				pids: [number, number];
+				tid: number;
+				season: number;
+				min: number;
+				net: number;
+			}[] = [];
+
+			await forEachSeasonLineups((seasonRows) => {
+				const pairs = new Map<
+					string,
+					{
+						pids: [number, number];
+						min: number;
+						poss: number;
+						oppPoss: number;
+						pts: number;
+						oppPts: number;
+						tid: number;
+						season: number;
+					}
+				>();
 				for (const l of seasonRows) {
 					if (l.playoffs) {
 						continue;
 					}
 					for (let i = 0; i < l.pids.length; i++) {
 						for (let j = i + 1; j < l.pids.length; j++) {
-							const key = `${l.pids[i]}-${l.pids[j]}`;
+							// Keyed by season too - batches are single-season in
+							// production, but don't rely on it.
+							const key = `${l.season}-${l.pids[i]}-${l.pids[j]}`;
 							let pair = pairs.get(key);
 							if (!pair) {
 								pair = {
@@ -147,9 +270,8 @@ const updateFrivolitiesLineups = async (
 									oppPoss: 0,
 									pts: 0,
 									oppPts: 0,
-									seasons: new Set(),
-									lastTid: l.tid,
-									lastSeason: l.season,
+									tid: l.tid,
+									season: l.season,
 								};
 								pairs.set(key, pair);
 							}
@@ -158,46 +280,46 @@ const updateFrivolitiesLineups = async (
 							pair.oppPoss += l.stats.oppPoss;
 							pair.pts += l.stats.pts;
 							pair.oppPts += l.stats.oppPts;
-							pair.seasons.add(l.season);
-							if (l.season >= pair.lastSeason) {
-								pair.lastSeason = l.season;
-								pair.lastTid = l.tid;
-							}
+							pair.tid = l.tid;
 						}
 					}
 				}
+
+				for (const pair of pairs.values()) {
+					if (pair.min < minMinutes) {
+						continue;
+					}
+					results.push({
+						pids: pair.pids,
+						tid: pair.tid,
+						season: pair.season,
+						min: pair.min,
+						net:
+							(pair.poss > 0 ? (100 * pair.pts) / pair.poss : 0) -
+							(pair.oppPoss > 0
+								? (100 * pair.oppPts) / pair.oppPoss
+								: 0),
+					});
+				}
+				results.sort((a, b) => b.net - a.net);
+				results = results.slice(0, MAX_ROWS);
 			});
 
-			const qualified = [...pairs.values()].filter(
-				(pair) => pair.min >= minMinutes,
-			);
-			const net = (pair: (typeof qualified)[number]) =>
-				(pair.poss > 0 ? (100 * pair.pts) / pair.poss : 0) -
-				(pair.oppPoss > 0 ? (100 * pair.oppPts) / pair.oppPoss : 0);
-			const top = orderBy(
-				qualified,
-				byNet ? [net, (pair) => pair.min] : [(pair) => pair.min, net],
-				["desc", "desc"],
-			).slice(0, MAX_ROWS);
-
-			const getPlayer = await resolveNames(top.flatMap((pair) => pair.pids));
+			const getPlayer = await resolveNames(results.flatMap((row) => row.pids));
 
 			return {
 				type,
-				title: byNet ? "Best Duos" : "Most Minutes Together",
-				description: byNet
-					? `The two-man combos with the highest career net rating on the floor together (min ${Math.round(minMinutes)} minutes).`
-					: `The two-man combos who spent the most career minutes on the floor together (min ${Math.round(minMinutes)} minutes).`,
-				mode: "duo" as const,
+				title: "Best Single-Season Duos",
+				description: `The two-man combos with the highest net rating on the floor together in one season (min ${Math.round(minMinutes)} minutes).`,
+				mode: "seasonDuo" as const,
 				userTid,
-				rows: top.map((pair) => ({
-					players: pair.pids.map(getPlayer),
-					tid: pair.lastTid,
-					abbrev: abbrev(pair.lastTid),
-					numSeasons: pair.seasons.size,
-					lastSeason: pair.lastSeason,
-					min: pair.min,
-					net: net(pair),
+				rows: results.map((row) => ({
+					players: row.pids.map(getPlayer),
+					tid: row.tid,
+					abbrev: abbrev(row.tid),
+					season: row.season,
+					min: row.min,
+					net: row.net,
 				})),
 			};
 		}
