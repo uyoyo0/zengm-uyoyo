@@ -32,8 +32,9 @@ export const TENDENCY_SHARE = {
 	// Pass-first: assist ratio - the share of a player's used possessions
 	// (FGA + 0.44*FTA + AST + TOV) that end in an assist rather than his own
 	// shot. ~17% is league-typical; a pure point guard runs ~35-45%, and a
-	// 100 tendency decodes to ~41% (all-time distributor seasons).
-	pass: { pivot: 0.17, slope: 210 },
+	// 100 tendency decodes to ~47% - Stockton's actual career ratio, so
+	// generational distributor seasons are encodable rather than clamped.
+	pass: { pivot: 0.17, slope: 165 },
 } satisfies Record<string, ShareMapping>;
 
 export const tendencyFromShare = (share: number, mapping: ShareMapping) =>
