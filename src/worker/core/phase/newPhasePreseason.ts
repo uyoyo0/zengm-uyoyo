@@ -21,6 +21,7 @@ import type {
 	TeamSeason,
 } from "../../../common/types.ts";
 import { playerCoachFit } from "../coach/style.ts";
+import { driftUsageTendency } from "../player/genTendencies.basketball.ts";
 import { fitAdjustedCoachingLevel } from "../../../common/coachingConstants.ts";
 import { groupByUnique, maxBy } from "../../../common/utils.ts";
 import { applyRealTeamInfo } from "../../../common/applyRealTeamInfo.ts";
@@ -255,6 +256,7 @@ const newPhasePreseason = async (
 	// development adjustment. Read fresh after updateTeamCoaching runs.
 	const teamCoachingByTid = new Map<number, TeamCoaching>();
 	const coachAdaptabilityByTid = new Map<number, number>();
+	const coachTacticsByTid = new Map<number, number>();
 	if (isSport("basketball")) {
 		await coach.processCoachMarket(conditions);
 		await coach.updateTeamCoaching();
@@ -265,6 +267,7 @@ const newPhasePreseason = async (
 		for (const c of coaches) {
 			if (c.tid >= 0) {
 				coachAdaptabilityByTid.set(c.tid, c.ratings.adaptability);
+				coachTacticsByTid.set(c.tid, c.ratings.tactics);
 			}
 		}
 		for (const t of teams) {
@@ -453,6 +456,17 @@ const newPhasePreseason = async (
 			// Fan popularity for the new season, from last season's play.
 			if (isSport("basketball")) {
 				player.updatePopularity(p, popularityContext);
+
+				// Usage identity drifts toward what current skills imply, paced by
+				// the coach's tactics - breakout players grow into featured roles,
+				// aging stars cede possessions.
+				const ratings = p.ratings.at(-1);
+				if (ratings) {
+					driftUsageTendency(
+						ratings as any,
+						coachTacticsByTid.get(p.tid) ?? 50,
+					);
+				}
 			}
 		}
 
