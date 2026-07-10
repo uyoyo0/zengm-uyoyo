@@ -15,6 +15,7 @@ export { default as colleges } from "./colleges.ts";
 export { default as coach } from "./coach.ts";
 export { default as coaches } from "./coaches.ts";
 export { default as coachRecords } from "./coachRecords.ts";
+export { default as teamChemistryPage } from "./teamChemistryPage.ts";
 export { default as comparePlayers } from "./comparePlayers.ts";
 export { default as countries } from "./countries.ts";
 export { default as customizeCoach } from "./customizeCoach.ts";

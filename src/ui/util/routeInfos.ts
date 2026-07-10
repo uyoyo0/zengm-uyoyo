@@ -45,6 +45,8 @@ export const routeInfos = {
 	"/l/:lid/team_finances/:abbrev/:show": "teamFinances",
 	"/l/:lid/team_history": "teamHistory",
 	"/l/:lid/team_history/:abbrev": "teamHistory",
+	"/l/:lid/team_chemistry": "teamChemistryPage",
+	"/l/:lid/team_chemistry/:abbrev": "teamChemistryPage",
 	"/l/:lid/coaches": "coaches",
 	"/l/:lid/coach_records": "coachRecords",
 	"/l/:lid/coach/:cid": "coach",

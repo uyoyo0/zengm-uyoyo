@@ -1,5 +1,19 @@
 import { DEFAULT_COACHING } from "../../../common/constants.ts";
-import { COACHING } from "../../../common/coachingConstants.ts";
+import {
+	ADAPT_TOLERANCE,
+	COACHING,
+	CONFLICT_FIT_PENALTY,
+	DIAL_GAIN,
+	FIT_NEUTRAL,
+	ROLE_DIAL_DAMP,
+	ROLE_GAIN_DOWN,
+	ROLE_GAIN_UP,
+	ROLE_R0,
+} from "../../../common/coachingConstants.ts";
+import {
+	identityConflict,
+	playerRoleScore,
+} from "../../../common/roleNeeds.basketball.ts";
 import { helpers } from "../../util/index.ts";
 import { last } from "../../../common/utils.ts";
 import type { Coach, Player, TeamCoaching } from "../../../common/types.ts";
@@ -131,19 +145,70 @@ export const playerSystemFit = (
 // Per-dial mismatches between a player's preferred style and the team's
 // actual style (directional, see dialMismatch), largest first. playerWants is
 // the sign of (preferred - actual): +1 means the player wants more of that
-// dial than the system gives. Drives the chemistry mismatch messages.
+// dial than the system gives. damp scales reported magnitudes down for
+// players whose demanded role rescues their fit, so message severity matches
+// the grade. Drives the chemistry mismatch messages.
 export const fitBreakdown = (
 	preferred: TeamCoaching,
 	actual: TeamCoaching,
+	damp = 1,
 ): { dial: keyof TeamCoaching; playerWants: 1 | -1; magnitude: number }[] => {
 	return DIAL_KEYS.map((dial) => {
 		const diff = preferred[dial] - actual[dial];
 		return {
 			dial,
 			playerWants: (diff >= 0 ? 1 : -1) as 1 | -1,
-			magnitude: dialMismatch(preferred[dial], actual[dial]),
+			magnitude: damp * dialMismatch(preferred[dial], actual[dial]),
 		};
 	}).sort((a, b) => b.magnitude - a.magnitude);
+};
+
+// The full player-vs-coach chemistry fit, 0..1 on the shared grade scale.
+// Two layers: dial similarity (playerSystemFit - "does he play the way the
+// system plays") and role supply (playerRoleScore - "does the system have a
+// job for him"). A demanded role rescues a player whose own style differs
+// from the system's identity (the rim protector behind a gambling perimeter
+// defense), and damps his dial friction. The role penalty for supplying
+// nothing is mild, so low-rated players aren't double-punished. An adaptable
+// coach tolerates misfits, recovering part of a below-neutral deficit; a
+// rigid one deepens it.
+export const playerCoachFit = (
+	ratings: { [key: string]: unknown },
+	coaching: TeamCoaching,
+	adaptability = 50,
+): number => {
+	const dialFit = playerSystemFit(playerOptimalStyle(ratings), coaching);
+	const role = playerRoleScore(ratings, coaching).score;
+
+	const damp = 1 - ROLE_DIAL_DAMP * role;
+	const roleTerm =
+		ROLE_GAIN_UP * Math.max(0, role - ROLE_R0) -
+		ROLE_GAIN_DOWN * Math.max(0, ROLE_R0 - role);
+	// A tendency-driven identity conflict (e.g. a committed chucker in a
+	// paint-first system) hurts beyond its diluted share of the dial mean -
+	// the player's game actively fights the system's defining choice.
+	const conflictTerm = CONFLICT_FIT_PENALTY * identityConflict(ratings, coaching);
+	let fit01 = helpers.bound(
+		FIT_NEUTRAL +
+			roleTerm -
+			conflictTerm +
+			DIAL_GAIN * (dialFit - FIT_NEUTRAL) * damp,
+		0,
+		1,
+	);
+
+	// Adaptability tolerance: only below-neutral fits (no double reward -
+	// seasonStyle already bent the dials toward the roster).
+	const deficit = Math.max(0, FIT_NEUTRAL - fit01);
+	if (deficit > 0) {
+		fit01 = helpers.bound(
+			fit01 + ADAPT_TOLERANCE * ((adaptability - 50) / 50) * deficit,
+			0,
+			1,
+		);
+	}
+
+	return fit01;
 };
 
 // The season's effective style: blend the coach's philosophy with the roster-optimal

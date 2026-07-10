@@ -13,7 +13,14 @@ import {
 	PHASE,
 } from "../../../common/constants.ts";
 import playThroughInjuriesFactor from "../../../common/playThroughInjuriesFactor.ts";
-import { playoffMatchupWeight } from "../../../common/coachingConstants.ts";
+import {
+	misfitBenchFactor,
+	playoffMatchupWeight,
+} from "../../../common/coachingConstants.ts";
+import {
+	identityConflict,
+	playerRoleScore,
+} from "../../../common/roleNeeds.basketball.ts";
 import { bySport, isSport } from "../../../common/sportFunctions.ts";
 import { last } from "../../../common/utils.ts";
 
@@ -181,17 +188,25 @@ export const processTeam = async (
 		playoffs,
 	});
 
-	// Head coach's tactics rating drives lineup-fit decisions in the sim, and
-	// motivation drives bench energy recovery.
+	// Head coach's tactics rating drives lineup-fit decisions in the sim,
+	// motivation drives bench energy recovery, and adaptability scales how
+	// much extreme system misfits get buried in the rotation.
 	let coachTactics = 50;
 	let coachMotivation = 50;
+	let coachAdaptability = 50;
+	let hasCoach = false;
 	if (isSport("basketball") && teamInput.tid >= 0) {
 		const coachesForTeam = await idb.cache.coaches.indexGetAll(
 			"coachesByTid",
 			teamInput.tid,
 		);
-		coachTactics = coachesForTeam[0]?.ratings.tactics ?? 50;
-		coachMotivation = coachesForTeam[0]?.ratings.motivation ?? 50;
+		const headCoach = coachesForTeam[0];
+		if (headCoach) {
+			hasCoach = true;
+			coachTactics = headCoach.ratings.tactics;
+			coachMotivation = headCoach.ratings.motivation;
+			coachAdaptability = headCoach.ratings.adaptability;
+		}
 	}
 
 	const t: any = {
@@ -267,7 +282,25 @@ export const processTeam = async (
 				absolute: (rating as any).tendencyAbsolute ?? false,
 			},
 			hotHand: 0,
+			systemFitFactor: 1,
 		};
+
+		// Extreme system misfits (tendency-driven identity conflict) get a
+		// bounded substitution-ranking penalty, scaled by how rigid the coach
+		// is and softened by how much the system still has a job for them.
+		// Uses the season style, not per-matchup dials - benching is about
+		// identity, not tonight's opponent.
+		if (isSport("basketball") && hasCoach && teamInput.coaching) {
+			const conflict = identityConflict(rating as any, t.coaching);
+			if (conflict > 0) {
+				const role = playerRoleScore(rating as any, t.coaching);
+				p2.systemFitFactor = misfitBenchFactor(
+					conflict,
+					role.score,
+					coachAdaptability,
+				);
+			}
+		}
 
 		// Reset ptModifier for AI teams. This should not be necessary since it should always be 1, but let's be safe.
 		if (!g.get("userTids").includes(t.id) || g.get("spectator")) {

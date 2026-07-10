@@ -372,6 +372,7 @@ const TopStuff = ({
 							) : null}
 							{teamChemistry && !challengeNoRatings ? (
 								<TeamChemistry
+									abbrev={abbrev}
 									players={players}
 									season={season}
 									teamChemistry={teamChemistry}

@@ -2,9 +2,12 @@ import { assert, beforeAll, describe, test } from "vitest";
 import {
 	fitBreakdown,
 	matchupAdjust,
+	playerCoachFit,
 	playerOptimalStyle,
 	playerSystemFit,
 } from "./style.ts";
+import { playerRoleScore } from "../../../common/roleNeeds.basketball.ts";
+import { ROLE_R0 } from "../../../common/coachingConstants.ts";
 import genPhilosophy from "./genPhilosophy.ts";
 import { player } from "../index.ts";
 import { resetG } from "../../../test/helpers.ts";
@@ -92,22 +95,24 @@ describe("fitBreakdown", () => {
 	});
 });
 
-describe("playerSystemFit", () => {
+describe("playerCoachFit", () => {
+	const SHOOTER_RATINGS = {
+		tp: 85,
+		spd: 65,
+		dnk: 60,
+		reb: 55,
+		hgt: 60,
+		diq: 60,
+		tendencyThree: 85,
+	};
+
 	test("shooter-loaded five under a max-3PT coach reads as a good fit", () => {
 		// The reported bug: a starting five of elite shooters with a coach who
 		// emphasizes threes showed "Bombs away by design, bricks by personnel".
 		// Elite well-rounded shooters have comparative-advantage 3PT signals of
 		// ~+0.4-0.6, well short of a committed coach's +1.0 dial - which must
 		// read as harmony, not mismatch.
-		const shooter = playerOptimalStyle({
-			tp: 85,
-			spd: 65,
-			dnk: 60,
-			reb: 55,
-			hgt: 60,
-			diq: 60,
-			tendencyThree: 85,
-		});
+		const shooter = playerOptimalStyle(SHOOTER_RATINGS);
 		assert(shooter.threePointTendency > 0);
 		assert(shooter.threePointTendency < 1);
 
@@ -116,7 +121,7 @@ describe("playerSystemFit", () => {
 			threePointTendency: 1,
 			pace: 0.3,
 		};
-		const fit = playerSystemFit(shooter, threeHappySystem);
+		const fit = playerCoachFit(SHOOTER_RATINGS, threeHappySystem);
 		assert(fit >= 0.82, `shooter under 3PT coach should grade B+: ${fit}`);
 
 		// And no 3PT mismatch message material.
@@ -131,8 +136,58 @@ describe("playerSystemFit", () => {
 			crashOffensiveGlass: 0.8,
 			paintDefense: 0.8,
 		};
-		const badFit = playerSystemFit(shooter, paintSystem);
+		const badFit = playerCoachFit(SHOOTER_RATINGS, paintSystem);
 		assert(badFit < fit - 0.1, `opposed system should fit worse: ${badFit}`);
+	});
+
+	test("rim protector behind a gambling perimeter defense is a great fit", () => {
+		// The user's canonical complement case: his own preferred style opposes
+		// the system's dials (he'd pack the paint), but the scheme is built on
+		// having an eraser behind the gambles - the role demand must rescue him.
+		const rimProtector = {
+			hgt: 75,
+			diq: 70,
+			jmp: 60,
+			spd: 35,
+			tp: 25,
+			dnk: 65,
+			ins: 60,
+			reb: 70,
+			stre: 75,
+			tendencyThree: 15,
+		};
+		const gamblingPerimeterD = {
+			...DEFAULT_COACHING,
+			paintDefense: -0.8,
+			defensiveAggression: 0.8,
+		};
+
+		const fit = playerCoachFit(rimProtector, gamblingPerimeterD);
+		const dialOnly = playerSystemFit(
+			playerOptimalStyle(rimProtector),
+			gamblingPerimeterD,
+		);
+		assert(fit >= 0.82, `backline eraser should grade B+: ${fit}`);
+		assert(fit > dialOnly, `role demand should rescue: ${fit} vs ${dialOnly}`);
+	});
+
+	test("adaptable coaches tolerate misfits; above-neutral fits unaffected", () => {
+		const paintSystem = {
+			...DEFAULT_COACHING,
+			threePointTendency: -1,
+			crashOffensiveGlass: 0.8,
+			paintDefense: 0.8,
+		};
+		const rigid = playerCoachFit(SHOOTER_RATINGS, paintSystem, 10);
+		const neutral = playerCoachFit(SHOOTER_RATINGS, paintSystem, 50);
+		const adaptable = playerCoachFit(SHOOTER_RATINGS, paintSystem, 90);
+		assert(adaptable > neutral && neutral > rigid);
+
+		const threeHappySystem = { ...DEFAULT_COACHING, threePointTendency: 1 };
+		assert.strictEqual(
+			playerCoachFit(SHOOTER_RATINGS, threeHappySystem, 10),
+			playerCoachFit(SHOOTER_RATINGS, threeHappySystem, 90),
+		);
 	});
 });
 
@@ -200,10 +255,11 @@ describe("fit distribution", () => {
 		let n = 0;
 		let positives = 0;
 		let negatives = 0;
+		let roleSum = 0;
 		for (const p of players) {
-			const preferred = playerOptimalStyle(p.ratings.at(-1));
+			const ratings = p.ratings.at(-1);
 			for (const philosophy of philosophies) {
-				const effect = fitEffect(playerSystemFit(preferred, philosophy));
+				const effect = fitEffect(playerCoachFit(ratings, philosophy));
 				sum += effect;
 				n += 1;
 				if (effect > 0) {
@@ -211,14 +267,25 @@ describe("fit distribution", () => {
 				} else if (effect < 0) {
 					negatives += 1;
 				}
+				roleSum += playerRoleScore(ratings, philosophy).score;
 			}
 		}
 
 		const mean = sum / n;
+		const roleMean0 = roleSum / n;
 		assert(
 			mean > -0.25 && mean < 0.25,
-			`mean fitEffect skewed: ${mean.toFixed(3)} (tune FIT_NEUTRAL)`,
+			`mean fitEffect skewed: ${mean.toFixed(3)} (roleMean ${roleMean0.toFixed(3)}; tune ROLE_R0/ROLE_GAIN_UP, not FIT_NEUTRAL)`,
 		);
 		assert(positives > 0 && negatives > 0);
+
+		// ROLE_R0 should sit at the empirical mean role score of generated
+		// players, so the roleTerm is centered and the main guard isn't
+		// silently absorbing a role-side skew.
+		const roleMean = roleSum / n;
+		assert(
+			Math.abs(roleMean - ROLE_R0) < 0.1,
+			`mean playerRoleScore ${roleMean.toFixed(3)} far from ROLE_R0 ${ROLE_R0} - retune ROLE_R0`,
+		);
 	});
 });

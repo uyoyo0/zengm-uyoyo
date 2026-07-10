@@ -64,13 +64,17 @@ const MIX_SKILL_BASE = 0.6;
 const MIX_SKILL_W = 0.8;
 
 // Lineup fit predicates: a "spacer" is a real outside threat who's willing to
-// shoot; a "ball-dominant" player has a high usage tendency.
+// shoot; a "ball-dominant" player has a high usage tendency; a "rim
+// protector" clears the interior-defense skill bar (Di badge cutoff).
 const isSpacer = (p: PlayerGameSim) =>
 	p.compositeRating.shootingThreePointer >= 0.5 && p.tendencies.three >= 45;
 const isBallDominant = (p: PlayerGameSim) => p.tendencies.usage > 65;
+const isRimProtector = (p: PlayerGameSim) =>
+	p.compositeRating.defenseInterior >= 0.57;
 const lineupCounts = (players: PlayerGameSim[]) => {
 	let numSpacers = 0;
 	let numBallDominant = 0;
+	let numRimProtectors = 0;
 	for (const p of players) {
 		if (isSpacer(p)) {
 			numSpacers += 1;
@@ -78,9 +82,19 @@ const lineupCounts = (players: PlayerGameSim[]) => {
 		if (isBallDominant(p)) {
 			numBallDominant += 1;
 		}
+		if (isRimProtector(p)) {
+			numRimProtectors += 1;
+		}
 	}
-	return { numSpacers, numBallDominant };
+	return { numSpacers, numBallDominant, numRimProtectors };
 };
+
+// Does this scheme depend on having a rim protector on the floor? Pack-paint
+// schemes are built on one; perimeter/aggressive schemes gamble behind one.
+const schemeWantsRimProtector = (coaching: TeamCoaching) =>
+	coaching.paintDefense >= 0.4 ||
+	coaching.paintDefense <= -0.4 ||
+	coaching.defensiveAggression >= 0.4;
 
 // Lineup fit (coach-managed): per-player sub-value nudge for spacing / avoiding
 // redundant ball-dominant players, scaled by coach tactics. Clamped tie-breaker.
@@ -173,6 +187,9 @@ type PlayerGameSim = {
 		absolute: boolean;
 	};
 	hotHand: number; // in-game make/miss streak (-3..3), transient
+	// Bounded substitution-ranking penalty for extreme system misfits, set in
+	// loadTeams (1 = no penalty).
+	systemFitFactor?: number;
 };
 type TeamGameSim = {
 	id: number;
@@ -1166,6 +1183,11 @@ class GameSim extends GameSimBase {
 				);
 				const spacingNeed = Math.max(0, 2 - fit.numSpacers);
 				const ballDomExcess = Math.max(0, fit.numBallDominant - 2);
+				// On-floor role coverage: schemes built on (or gambling behind) a
+				// rim protector want one on the floor at all times.
+				const rimNeed = schemeWantsRimProtector(this.team[t].coaching)
+					? Math.max(0, 1 - fit.numRimProtectors)
+					: 0;
 				const tacticsScale = this.team[t].coachTactics / 100;
 
 				for (const [i, p] of this.team[t].player.entries()) {
@@ -1185,6 +1207,9 @@ class GameSim extends GameSimBase {
 
 						if (!this.allStarGame) {
 							ovrs[p.id]! *= p.ptModifier;
+							// Rigid coaches bury extreme system misfits (bounded;
+							// see misfitBenchFactor).
+							ovrs[p.id]! *= p.systemFitFactor ?? 1;
 						}
 
 						// Also scale based on margin late in games, so stars play less in blowouts (this doesn't really work that well, but better than nothing)
@@ -1197,8 +1222,13 @@ class GameSim extends GameSimBase {
 						}
 
 						// Lineup fit (tie-breaker): favor spacers when spacing-starved,
-						// fade redundant ball-dominant players. Scaled by coach tactics.
-						if (!this.allStarGame && (spacingNeed > 0 || ballDomExcess > 0)) {
+						// fade redundant ball-dominant players, and keep a rim protector
+						// on the floor when the scheme demands one. Scaled by coach
+						// tactics.
+						if (
+							!this.allStarGame &&
+							(spacingNeed > 0 || ballDomExcess > 0 || rimNeed > 0)
+						) {
 							let fitMult = 1;
 							if (spacingNeed > 0 && isSpacer(p)) {
 								fitMult += tacticsScale * COACHING.LINEUP_SPACE_W * spacingNeed;
@@ -1206,6 +1236,9 @@ class GameSim extends GameSimBase {
 							if (ballDomExcess > 0 && isBallDominant(p)) {
 								fitMult -=
 									tacticsScale * COACHING.LINEUP_BALLDOM_W * ballDomExcess;
+							}
+							if (rimNeed > 0 && isRimProtector(p)) {
+								fitMult += tacticsScale * COACHING.LINEUP_RIM_W * rimNeed;
 							}
 							ovrs[p.id]! *= helpers.bound(
 								fitMult,

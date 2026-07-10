@@ -137,6 +137,10 @@ const runWithCoaches = async ({
 
 	const wins = [0, 0];
 	const pts = [0, 0];
+	const playerMin: [Map<number, number>, Map<number, number>] = [
+		new Map(),
+		new Map(),
+	];
 	for (let i = 0; i < n; i++) {
 		const teams = await loadTeams([0, 1], {});
 		const res: any = new GameSim({
@@ -155,8 +159,20 @@ const runWithCoaches = async ({
 		if (pts0 !== pts1) {
 			wins[pts0 > pts1 ? 0 : 1]! += 1;
 		}
+		for (const t of [0, 1] as const) {
+			for (const p of res.team[t].player) {
+				playerMin[t].set(
+					p.id,
+					(playerMin[t].get(p.id) ?? 0) + (p.stat.min ?? 0),
+				);
+			}
+		}
 	}
-	return { wins: wins as [number, number], pts: pts as [number, number] };
+	return {
+		wins: wins as [number, number],
+		pts: pts as [number, number],
+		playerMin,
+	};
 };
 
 const winPct = (wins: [number, number]) => wins[0] / (wins[0] + wins[1]);
@@ -394,6 +410,114 @@ test("playoffs: tactics edge persists in a game 7 (tripwire)", async () => {
 	});
 	report(`[playoff game 7] tactics 90-vs-10 win%: ${pct(p)} (${record})`);
 	assert(p > 0.48, `playoff tactics edge collapsed: ${p}`);
+}, 600000);
+
+test("rigid coaches bury committed misfits; adaptable coaches don't", async () => {
+	// A committed chucker (tendencyThree 95) WITHOUT the shot to justify it,
+	// on a roster of otherwise-identical players in a paint-first system - the
+	// true extreme misfit. Identical ratings make the substitution ranking a
+	// dead heat, so the rigid coach's penalty visibly costs him minutes while
+	// the adaptable coach's doesn't. (A conflicted player who still fills a
+	// demanded role is only mildly cut - roleSoftening in misfitBenchFactor.)
+	const makeChucker = (players: any[]) => {
+		const FIXED: Record<string, number> = {
+			hgt: 50,
+			stre: 50,
+			spd: 55,
+			jmp: 50,
+			endu: 55,
+			ins: 50,
+			dnk: 50,
+			ft: 55,
+			fg: 55,
+			tp: 45,
+			oiq: 55,
+			diq: 50,
+			drb: 55,
+			pss: 50,
+			reb: 50,
+			tendencyThree: 40,
+		};
+		for (const p of players) {
+			Object.assign(p.ratings.at(-1), FIXED);
+		}
+		players[0].ratings.at(-1).tendencyThree = 95;
+	};
+	const paintDials = { threePointTendency: -0.9 };
+	const n = 120;
+	const { playerMin } = await runWithCoaches({
+		coach0: makeCoach(0, { adaptability: 5 }),
+		coach1: makeCoach(1, { adaptability: 95 }),
+		dials0: paintDials,
+		dials1: paintDials,
+		basePatch: makeChucker,
+		n,
+	});
+
+	// Generated players share placeholder names, so find him by his marker.
+	const minOf = async (tid: 0 | 1) => {
+		const roster = await idb.cache.players.indexGetAll("playersByTid", tid);
+		const p = roster.find(
+			(p2) => (p2.ratings.at(-1) as any).tendencyThree === 95,
+		)!;
+		return (playerMin[tid].get(p.pid) ?? 0) / n;
+	};
+	const rigidMin = await minOf(0);
+	const adaptableMin = await minOf(1);
+	report(
+		`[misfit benching] chucker mpg: rigid coach=${rigidMin.toFixed(1)} adaptable coach=${adaptableMin.toFixed(1)}`,
+	);
+	assert(
+		rigidMin < adaptableMin * 0.9,
+		`rigid coach should cut the misfit's minutes: ${rigidMin} vs ${adaptableMin}`,
+	);
+	// On this dead-heat roster the rank cliff maximizes the cut; he must still
+	// be a real rotation player, never a DNP.
+	assert(
+		rigidMin > 8,
+		`benching must stay bounded, not a DNP: ${rigidMin} mpg`,
+	);
+}, 600000);
+
+test("eraser schemes keep their rim protector on the floor (tripwire)", async () => {
+	// One lone rim protector on the roster; under a gambling perimeter scheme
+	// the lineup tie-breaker should keep him on the floor at least as much as
+	// under a neutral scheme. Small lever - loose non-inferiority band.
+	const makeLoneProtector = (players: any[]) => {
+		for (const p of players) {
+			p.ratings.at(-1).hgt = Math.min(p.ratings.at(-1).hgt, 55);
+		}
+		const r = players[7].ratings.at(-1);
+		r.hgt = 78;
+		r.diq = 72;
+		r.stre = 70;
+		r.jmp = 65;
+	};
+	const n = 150;
+	const { playerMin } = await runWithCoaches({
+		coach0: makeCoach(0, { tactics: 90 }),
+		coach1: makeCoach(1, { tactics: 90 }),
+		dials0: { paintDefense: -0.8, defensiveAggression: 0.8 },
+		dials1: {},
+		basePatch: makeLoneProtector,
+		n,
+	});
+
+	// Generated players share placeholder names, so find him by his marker.
+	const minOf = async (tid: 0 | 1) => {
+		const roster = await idb.cache.players.indexGetAll("playersByTid", tid);
+		const p = roster.find((p2) => (p2.ratings.at(-1) as any).hgt === 78)!;
+		return (playerMin[tid].get(p.pid) ?? 0) / n;
+	};
+	const schemeMin = await minOf(0);
+	const neutralMin = await minOf(1);
+	report(
+		`[rim coverage] lone protector mpg: eraser scheme=${schemeMin.toFixed(1)} neutral=${neutralMin.toFixed(1)}`,
+	);
+	assert(
+		schemeMin > neutralMin - 1.5,
+		`eraser scheme should not play its protector less: ${schemeMin} vs ${neutralMin}`,
+	);
 }, 600000);
 
 test("adaptability rescues a philosophy that clashes with the roster", async () => {

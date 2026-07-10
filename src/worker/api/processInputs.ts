@@ -852,6 +852,11 @@ const teamHistory = (params: Params) => {
 	return { abbrev, show, tid };
 };
 
+const teamChemistryPage = (params: Params) => {
+	const [tid, abbrev] = validateAbbrev(params.abbrev);
+	return { abbrev, tid };
+};
+
 const teamRecords = (params: Params) => {
 	const filter: "all" | "your_teams" =
 		params.filter === "your_teams" ? "your_teams" : "all";
@@ -1163,6 +1168,7 @@ export default {
 	standings,
 	teamFinances,
 	teamGraphs,
+	teamChemistryPage,
 	teamHistory,
 	teamRecords,
 	teamStatDists: validateSeasonOnly,

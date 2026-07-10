@@ -7,7 +7,7 @@ import { g, helpers, local } from "../../util/index.ts";
 import { getNegotiationPids } from "../../views/negotiationList.ts";
 import { getNumPlayersTradedAwayNormalized } from "./getNumPlayersTradedAwayNormalized.ts";
 import { isSport } from "../../../common/sportFunctions.ts";
-import { playerOptimalStyle, playerSystemFit } from "../coach/style.ts";
+import { playerCoachFit } from "../coach/style.ts";
 import { FIT_MOOD_SCALE, fitEffect } from "../../../common/coachingConstants.ts";
 import { defaultGameAttributes } from "../../../common/defaultGameAttributes.ts";
 
@@ -321,16 +321,21 @@ const moodComponents = async (
 	}
 
 	{
-		// SYSTEM FIT: does this team's coaching system suit how he plays? For
-		// free agents, t is the potential signing team, so players weigh each
-		// suitor's system - shooters gravitate to three-happy coaches.
+		// SYSTEM FIT: does this team's coaching system have a place for how he
+		// plays? For free agents, t is the potential signing team, so players
+		// weigh each suitor's system - shooters gravitate to three-happy
+		// coaches, rim protectors to schemes that need an eraser. Adaptable
+		// coaches soften misfits' unhappiness.
 		if (isSport("basketball") && t.coaching) {
 			const ratings = p.ratings.at(-1);
 			if (ratings) {
-				const fit = playerSystemFit(
-					playerOptimalStyle(ratings as any),
-					t.coaching,
+				const coachesForTeam = await idb.cache.coaches.indexGetAll(
+					"coachesByTid",
+					tid,
 				);
+				const adaptability =
+					coachesForTeam[0]?.ratings.adaptability ?? 50;
+				const fit = playerCoachFit(ratings as any, t.coaching, adaptability);
 				components.systemFit = FIT_MOOD_SCALE * fitEffect(fit);
 			}
 		}

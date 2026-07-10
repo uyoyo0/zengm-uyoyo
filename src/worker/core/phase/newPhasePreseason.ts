@@ -20,7 +20,7 @@ import type {
 	TeamCoaching,
 	TeamSeason,
 } from "../../../common/types.ts";
-import { playerOptimalStyle, playerSystemFit } from "../coach/style.ts";
+import { playerCoachFit } from "../coach/style.ts";
 import { fitAdjustedCoachingLevel } from "../../../common/coachingConstants.ts";
 import { groupByUnique, maxBy } from "../../../common/utils.ts";
 import { applyRealTeamInfo } from "../../../common/applyRealTeamInfo.ts";
@@ -254,6 +254,7 @@ const newPhasePreseason = async (
 	// Each team's effective style dials, for the per-player system-fit
 	// development adjustment. Read fresh after updateTeamCoaching runs.
 	const teamCoachingByTid = new Map<number, TeamCoaching>();
+	const coachAdaptabilityByTid = new Map<number, number>();
 	if (isSport("basketball")) {
 		await coach.processCoachMarket(conditions);
 		await coach.updateTeamCoaching();
@@ -261,6 +262,11 @@ const newPhasePreseason = async (
 		const developmentByTid = new Map(
 			coaches.map((c) => [c.tid, c.ratings.development]),
 		);
+		for (const c of coaches) {
+			if (c.tid >= 0) {
+				coachAdaptabilityByTid.set(c.tid, c.ratings.adaptability);
+			}
+		}
 		for (const t of teams) {
 			// Coachless team = neutral coach (dev 50), not the budget-level default.
 			coachingLevels[t.tid] = developmentByTid.get(t.tid) ?? 50;
@@ -434,9 +440,10 @@ const newPhasePreseason = async (
 			if (teamCoaching && coachingLevel !== undefined) {
 				const ratings = p.ratings.at(-1);
 				if (ratings) {
-					const fit = playerSystemFit(
-						playerOptimalStyle(ratings as any),
+					const fit = playerCoachFit(
+						ratings as any,
 						teamCoaching,
+						coachAdaptabilityByTid.get(p.tid) ?? 50,
 					);
 					coachingLevel = fitAdjustedCoachingLevel(coachingLevel, fit);
 				}

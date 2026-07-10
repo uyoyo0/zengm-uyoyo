@@ -14,6 +14,7 @@ export { default as AwardsRecords } from "./AwardsRecords.tsx";
 export { default as Coach } from "./Coach.tsx";
 export { default as Coaches } from "./Coaches.tsx";
 export { default as CoachRecords } from "./CoachRecords.tsx";
+export { default as TeamChemistryPage } from "./TeamChemistryPage.tsx";
 export { default as CustomizeCoach } from "./CustomizeCoach.tsx";
 export { default as Colleges } from "./Colleges.tsx";
 export { default as ComparePlayers } from "./ComparePlayers/index.tsx";

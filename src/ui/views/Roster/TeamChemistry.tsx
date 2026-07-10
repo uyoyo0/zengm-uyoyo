@@ -1,23 +1,29 @@
 import { fitClass, fitGrade } from "../../util/fitGrade.ts";
 import {
 	playerFitMessage,
+	playerRoleFitMessage,
 	teamFitMessage,
 } from "../../util/fitMessages.ts";
 import { helpers } from "../../util/helpers.ts";
+import type { RoleNeed } from "../../../common/roleNeeds.basketball.ts";
 
-// How cohesively the roster fits the coach's system: a value-weighted grade,
-// a roster-level story, and the worst-fitting rotation players with why.
+// Compact chemistry card on the Roster page: cohesion grade, the roster-level
+// scouting line, and the worst-fitting rotation players. Links to the full
+// Team Chemistry page.
 const TeamChemistry = ({
+	abbrev,
 	players,
 	season,
 	teamChemistry,
 	tid,
 }: {
+	abbrev: string;
 	players: any[];
 	season: number;
 	teamChemistry: {
 		cohesion: number;
-		topMismatches: { dial: string; playerWants: 1 | -1; magnitude: number }[];
+		shortages: { need: RoleNeed; severity: number }[];
+		surpluses: { kind: "spacing" | "creation"; severity: number }[];
 	};
 	tid: number;
 }) => {
@@ -39,9 +45,15 @@ const TeamChemistry = ({
 				<span className={`ms-2 fs-5 fw-bold ${fitClass(grade) ?? ""}`}>
 					{grade}
 				</span>
+				<a
+					className="ms-auto small"
+					href={helpers.leagueUrl(["team_chemistry", `${abbrev}_${tid}`])}
+				>
+					Full report
+				</a>
 			</div>
 			<div className="text-body-secondary">
-				{teamFitMessage(teamChemistry.topMismatches, tid + season * 31)}
+				{teamFitMessage(teamChemistry, tid + season * 31)}
 			</div>
 			{worstFits.length > 0 ? (
 				<ul className="list-unstyled mb-0 mt-2 small">
@@ -58,7 +70,8 @@ const TeamChemistry = ({
 							</span>
 							<div className="text-body-secondary">
 								{playerFitMessage(p.fitDetails, p.pid + season * 7919) ??
-									"Doesn't fit the system"}
+									playerRoleFitMessage(p.fitRole, p.pid + season * 7919) ??
+									"Miscast in this system"}
 							</div>
 						</li>
 					))}

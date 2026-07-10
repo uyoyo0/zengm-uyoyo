@@ -14,9 +14,22 @@ import { getAllCoaches } from "./coachCareer.ts";
 import addFirstNameShort from "../util/addFirstNameShort.ts";
 import {
 	fitBreakdown,
+	playerCoachFit,
 	playerOptimalStyle,
-	playerSystemFit,
 } from "../core/coach/style.ts";
+import {
+	identityConflict,
+	playerRoleScore,
+	teamRoleCoverage,
+	type RoleNeed,
+} from "../../common/roleNeeds.basketball.ts";
+import {
+	COVERAGE_C0,
+	COVERAGE_GAIN,
+	FIT_NEUTRAL,
+	misfitBenchFactor,
+	ROLE_DIAL_DAMP,
+} from "../../common/coachingConstants.ts";
 import { getActualPlayThroughInjuries } from "../core/game/loadTeams.ts";
 import { bySport, isSport } from "../../common/sportFunctions.ts";
 import { orderTeams } from "../util/orderTeams.ts";
@@ -210,11 +223,8 @@ const updateRoster = async (
 		let teamChemistry:
 			| {
 					cohesion: number;
-					topMismatches: {
-						dial: string;
-						playerWants: 1 | -1;
-						magnitude: number;
-					}[];
+					shortages: { need: RoleNeed; severity: number }[];
+					surpluses: { kind: "spacing" | "creation"; severity: number }[];
 			  }
 			| undefined;
 
@@ -281,15 +291,20 @@ const updateRoster = async (
 			}
 
 			// System fit vs the coach's current system, per player plus a
-			// roster-wide chemistry summary. Raw (unfuzzed) ratings - a letter
-			// grade is coarse, and the UI hides it under challengeNoRatings.
+			// roster-wide chemistry summary (role-demand coverage). Raw
+			// (unfuzzed) ratings - a letter grade is coarse, and the UI hides it
+			// under challengeNoRatings.
 			if (isSport("basketball") && t.coaching) {
 				const coaching = t.coaching;
+				const coachesForTeam = await idb.cache.coaches.indexGetAll(
+					"coachesByTid",
+					inputs.tid,
+				);
+				const adaptability = coachesForTeam[0]?.ratings.adaptability ?? 50;
 				const rawByPid = new Map(playersAll.map((p2) => [p2.pid, p2]));
 
 				let weightSum = 0;
 				let fitSum = 0;
-				const dialSums = new Map<string, number>();
 
 				for (const p of players) {
 					const raw = rawByPid.get(p.pid);
@@ -298,40 +313,48 @@ const updateRoster = async (
 						continue;
 					}
 
-					const preferred = playerOptimalStyle(ratings as any);
-					p.systemFit = playerSystemFit(preferred, coaching);
-					// Top style mismatches, for the chemistry messages. Only
+					p.systemFit = playerCoachFit(ratings as any, coaching, adaptability);
+					const role = playerRoleScore(ratings as any, coaching);
+					if (role.score >= 0.55) {
+						p.fitRole = role;
+					}
+					// Top style mismatches, for the chemistry messages, damped for
+					// players whose demanded role rescues their fit. Only
 					// meaningful gaps (0.3+ on a [-1, 1] dial).
-					p.fitDetails = fitBreakdown(preferred, coaching)
+					p.fitDetails = fitBreakdown(
+						playerOptimalStyle(ratings as any),
+						coaching,
+						1 - ROLE_DIAL_DAMP * role.score,
+					)
 						.filter((row) => row.magnitude >= 0.3)
 						.slice(0, 2);
+					p.systemFitFactor = misfitBenchFactor(
+						identityConflict(ratings as any, coaching),
+						role.score,
+						adaptability,
+					);
 
 					const weight = Math.max(0, raw!.value ?? 0);
 					weightSum += weight;
 					fitSum += weight * p.systemFit;
-					for (const row of fitBreakdown(preferred, coaching)) {
-						dialSums.set(
-							row.dial,
-							(dialSums.get(row.dial) ?? 0) +
-								weight * row.playerWants * row.magnitude,
-						);
-					}
 				}
 
 				if (weightSum > 0) {
-					const topMismatches = [...dialSums.entries()]
-						.map(([dial, sum]) => ({
-							dial,
-							playerWants: (sum >= 0 ? 1 : -1) as 1 | -1,
-							magnitude: Math.abs(sum) / weightSum,
-						}))
-						.sort((a, b) => b.magnitude - a.magnitude)
-						.filter((row) => row.magnitude >= 0.15)
-						.slice(0, 2);
+					// Coverage over the rotation: top 9 by value, best first.
+					const rotation = [...playersAll]
+						.sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+						.slice(0, 9)
+						.map((p2) => ({ ratings: p2.ratings.at(-1) as any }));
+					const coverage = teamRoleCoverage(rotation, coaching);
 
 					teamChemistry = {
-						cohesion: fitSum / weightSum,
-						topMismatches,
+						cohesion:
+							0.5 * (fitSum / weightSum) +
+							0.5 *
+								(FIT_NEUTRAL +
+									(coverage.coverageMean - COVERAGE_C0) * COVERAGE_GAIN),
+						shortages: coverage.shortages,
+						surpluses: coverage.surpluses,
 					};
 				}
 			}
