@@ -1,4 +1,4 @@
-import type { IDBPTransaction } from "@dumbmatter/idb";
+import { deleteDB, type IDBPTransaction } from "@dumbmatter/idb";
 import {
 	draft,
 	finances,
@@ -62,7 +62,7 @@ import createGameAttributes from "./createGameAttributes.ts";
 import initRandomDebutsForRandomPlayersLeague from "./initRandomDebutsForRandomPlayersLeague.ts";
 import setRepeatSeason from "./setRepeatSeason.ts";
 import processPlayerNewLeague from "./processPlayerNewLeague.ts";
-import remove from "./remove.ts";
+import close from "./close.ts";
 import { TOO_MANY_TEAMS_TOO_SLOW } from "../season/getInitialNumGamesConfDivSettings.ts";
 import { DEFAULT_LEVEL, amountToLevel } from "../../../common/budgetLevels.ts";
 import {
@@ -118,15 +118,35 @@ const addLeagueMeta = async ({
 		imgURL: t.imgURLSmall ?? t.imgURL,
 	};
 
-	// In case we are importing over an old league
-	const oldLeague = await idb.meta.get("leagues", lid);
-	await remove(lid);
-	if (oldLeague) {
-		l.created = oldLeague.created;
-		l.starred = oldLeague.starred;
+	// In case we are importing over the currently open league
+	if (g.get("lid") === lid) {
+		await close(true);
 	}
 
-	await idb.meta.add("leagues", l);
+	// Claim the meta row atomically: read/delete/add in one transaction, so a
+	// concurrent league creation can't allocate the same lid and hit "Key
+	// already exists" (or worse, delete the other creation's league).
+	const tx = await idb.meta.transaction("leagues", "readwrite");
+	const oldLeague = await tx.store.get(lid);
+	if (oldLeague) {
+		// In case we are importing over an old league
+		l.created = oldLeague.created;
+		l.starred = oldLeague.starred;
+		await tx.store.delete(lid);
+	}
+	await tx.store.add(l);
+	await tx.done;
+
+	// Delete any old league database being imported over.
+	await deleteDB(`league${lid}`, {
+		blocked() {
+			logEvent({
+				type: "error",
+				text: "Please close any other open tabs.",
+				saveToDb: false,
+			});
+		},
+	});
 
 	idb.league = await connectLeague(lid);
 };

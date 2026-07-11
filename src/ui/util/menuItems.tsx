@@ -327,6 +327,14 @@ export const menuItems: (MenuItemLink | MenuItemHeader)[] = [
 							path: ["coaches"],
 							text: "Coaches",
 						},
+						{
+							type: "link",
+							active: (pageID?: string) => pageID === "teamChemistryPage",
+							league: true,
+							commandPalette: true,
+							path: ["team_chemistry"],
+							text: "Team Chemistry",
+						},
 					] as MenuItemLink[])
 				: []),
 			...(bySport({

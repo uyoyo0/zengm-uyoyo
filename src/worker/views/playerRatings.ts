@@ -238,6 +238,7 @@ const updatePlayers = async (
 				"drb",
 				"pss",
 				"reb",
+				"popularity",
 			],
 			football: [
 				"hgt",

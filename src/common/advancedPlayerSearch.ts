@@ -50,8 +50,14 @@ export const addPrefixForStat = (statType: string, stat: string) => {
 	return `stat:${stat.endsWith("Max") ? stat.replace("Max", "") : stat}`;
 };
 
+// Popularity rides along with the scouted ratings on every ratings surface,
+// but is deliberately not in RATINGS (which has mechanical consumers).
+export const EXTRA_DISPLAY_RATINGS = isSport("basketball")
+	? ["popularity"]
+	: [];
+
 const ratingOptions: Record<string, MinimalAdvancedPlayerSearchField> = {};
-for (const key of ["ovr", "pot", ...RATINGS]) {
+for (const key of ["ovr", "pot", ...RATINGS, ...EXTRA_DISPLAY_RATINGS]) {
 	ratingOptions[key] = {
 		colKey: addPrefixForStat("ratings", key),
 		valueType: "numeric",
@@ -230,6 +236,8 @@ export const getStatsTableByType = (statTypePlus: string) => {
 	if (isSport("basketball")) {
 		if (statTypePlus === "advanced") {
 			table = PLAYER_STATS_TABLES.advanced!;
+		} else if (statTypePlus === "onOff") {
+			table = PLAYER_STATS_TABLES.onOff!;
 		} else if (statTypePlus === "shotLocations") {
 			table = PLAYER_STATS_TABLES.shotLocations!;
 		} else if (statTypePlus === "gameHighs") {
@@ -246,7 +254,7 @@ export const getStatsTableByType = (statTypePlus: string) => {
 
 export const getStats = (statTypePlus: string) => {
 	if (statTypePlus === "ratings") {
-		return ["ovr", "pot", ...RATINGS];
+		return ["ovr", "pot", ...RATINGS, ...EXTRA_DISPLAY_RATINGS];
 	} else if (statTypePlus == "bio") {
 		return ["age", "salary", "draftPosition"];
 	} else {
@@ -292,7 +300,7 @@ export const getExtraStatTypeKeys = (
 				}
 			}
 		} else if (statType === "ratings") {
-			ratings.push(...RATINGS);
+			ratings.push(...RATINGS, ...EXTRA_DISPLAY_RATINGS);
 		} else {
 			stats.push(...getStats(statType));
 		}

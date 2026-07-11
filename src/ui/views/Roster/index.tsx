@@ -27,6 +27,12 @@ import { wrappedRatingWithChange } from "../../components/RatingWithChange.tsx";
 import type { BulkAction } from "../../components/DataTable/BulkActions.tsx";
 import { groupByUnique } from "../../../common/utils.ts";
 import { CountryFlag } from "../../components/CountryFlag.tsx";
+import { fitClass, fitGrade } from "../../util/fitGrade.ts";
+import {
+	playerFitMessage,
+	playerGoodFitMessage,
+	playerRoleFitMessage,
+} from "../../util/fitMessages.ts";
 import { SafeHtml } from "../../components/SafeHtml.tsx";
 import { HelpPopover } from "../../components/HelpPopover.tsx";
 import { confirm } from "../../util/confirm.tsx";
@@ -105,6 +111,7 @@ const Roster = ({
 	showTradingBlock,
 	stats,
 	t,
+	teamChemistry,
 	tid,
 	usePts,
 }: View<"roster">) => {
@@ -158,6 +165,10 @@ const Roster = ({
 	const profit = t.seasonAttrs !== undefined ? t.seasonAttrs.profit : 0;
 
 	const showMood = season === currentSeason;
+	const showSystemFit =
+		season === currentSeason &&
+		!challengeNoRatings &&
+		players.some((p: any) => p.systemFit !== undefined);
 
 	const cols = getCols(
 		[
@@ -171,6 +182,7 @@ const Roster = ({
 			"Country",
 			...stats.map((stat) => `stat:${stat}`),
 			...(editable ? ["PT"] : []),
+			...(showSystemFit ? ["System Fit"] : []),
 			...(showMood ? ["Mood"] : []),
 			...(showRelease ? ["Release"] : []),
 			...(showTradeFor || showTradingBlock ? ["Trade"] : []),
@@ -331,6 +343,41 @@ const Roster = ({
 				},
 				...stats.map((stat) => helpers.roundStat(p.stats[stat], stat)),
 				...(editable ? [<PlayingTime p={p} userTid={userTid} />] : []),
+				...(showSystemFit
+					? [
+							p.systemFit !== undefined && showRatings
+								? (() => {
+										const grade = fitGrade(p.systemFit);
+										const seed = p.pid + season * 7919;
+										// Priority: demanded-role positive for good fits, then
+										// mismatch, then generic positive.
+										const message =
+											(p.systemFit >= 0.82
+												? playerRoleFitMessage(p.fitRole, seed)
+												: undefined) ??
+											playerFitMessage(p.fitDetails, seed) ??
+											(p.systemFit >= 0.82
+												? playerGoodFitMessage(seed)
+												: undefined);
+										return {
+											value: (
+												<span
+													className={fitClass(grade)}
+													title={
+														message ??
+														"How well his play style fits the coach's system"
+													}
+												>
+													{grade}
+												</span>
+											),
+											sortValue: p.systemFit,
+											searchValue: grade,
+										};
+									})()
+								: null,
+						]
+					: []),
 				...(showMood
 					? [
 							wrappedMood({
@@ -405,6 +452,7 @@ const Roster = ({
 				showTradeFor={showTradeFor}
 				showTradingBlock={showTradingBlock}
 				t={t}
+				teamChemistry={teamChemistry}
 				tid={tid}
 				usePts={usePts}
 			/>

@@ -12,6 +12,7 @@ import recomputeCoachHallOfFame from "./recomputeCoachHallOfFame.ts";
 import recomputeHallOfFame from "./recomputeHallOfFame.ts";
 import rederiveTendencies from "./rederiveTendencies.ts";
 import recomputeOvr from "./recomputeOvr.ts";
+import recomputePopularity from "./recomputePopularity.ts";
 import recomputeRealSeasonLeaders from "./recomputeRealSeasonLeaders.ts";
 
 export default {
@@ -28,5 +29,6 @@ export default {
 	recomputeHallOfFame,
 	rederiveTendencies,
 	recomputeOvr,
+	recomputePopularity,
 	recomputeRealSeasonLeaders,
 };

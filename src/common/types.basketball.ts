@@ -185,6 +185,15 @@ export type PlayerRatings = {
 	// encode absolute shot shares; the sim then skips era scaling
 	// (threePointTendencyFactor) for this player.
 	tendencyAbsolute?: boolean;
+
+	// Fan popularity (0-100). Mostly emergent: performance, style, awards,
+	// clutch play, tenure, draft pedigree. Updated each preseason from last
+	// season (updatePopularity); drives All-Star fan voting and star-power
+	// revenue. Excluded from ovr/pot and from fuzz (it's public sentiment).
+	popularity?: number;
+	// Innate charisma seed (0-100, 50 = neutral, hidden): how magnetic a
+	// player is independent of performance. Constant for a player's career.
+	charisma?: number;
 };
 
 export type TendencyKey =

@@ -134,12 +134,20 @@ const CoachingSettings = ({
 							philosophy blended with that roster.
 						</p>
 					) : (
-						<p>
-							This team's playing style is set by its head coach — their
-							philosophy, how much they adapt it to the roster, and how they
-							adjust for each opponent. Manage coaches on the{" "}
-							<a href={helpers.leagueUrl(["coaches"])}>Coaches</a> page.
-						</p>
+						<>
+							<p>
+								This team's playing style is set by its head coach — their
+								philosophy, how much they adapt it to the roster, and how they
+								adjust for each opponent. Manage coaches on the{" "}
+								<a href={helpers.leagueUrl(["coaches"])}>Coaches</a> page.
+							</p>
+							<p>
+								In the playoffs, prep time and film make these matchup
+								adjustments stronger, and they keep growing as a series goes
+								deeper — a high-tactics coach gains a real edge in game 6s and
+								7s.
+							</p>
+						</>
 					)}
 				</HelpPopover>
 			</div>

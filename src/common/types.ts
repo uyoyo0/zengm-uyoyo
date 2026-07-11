@@ -970,6 +970,8 @@ export type MoodComponents = {
 	rookieContract: number;
 	difficulty: number;
 	relatives: number;
+	// How well the player's style fits this team's coaching system (basketball).
+	systemFit: number;
 	custom?: {
 		text: string;
 		amount: number;

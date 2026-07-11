@@ -12,6 +12,7 @@ import {
 import { player, season } from "../core/index.ts";
 import genTendencies from "../core/player/genTendencies.basketball.ts";
 import getPlayoffRecords from "../core/season/getPlayoffRecords.ts";
+import seedPopularity from "../core/player/seedPopularity.basketball.ts";
 import { idb } from "./index.ts";
 import { helpers, logEvent } from "../util/index.ts";
 import connectIndexedDB from "./connectIndexedDB.ts";
@@ -1892,6 +1893,23 @@ const migrate = async ({
 
 			if (changed) {
 				await cursor.update(coach);
+			}
+		}
+	}
+
+	if (
+		oldVersion < 79 &&
+		isSport("basketball") &&
+		// Guard against half-upgraded DBs missing stores (see lineupsStore.test.ts).
+		db.objectStoreNames.contains("players")
+	) {
+		// Backfill fan popularity onto every ratings row. seedPopularity uses
+		// only data on the player object (no g), so it can run in the upgrade
+		// transaction, and its award credit keeps legends' history plausible.
+		for await (const cursor of transaction.objectStore("players")) {
+			const p = cursor.value;
+			if (seedPopularity(p)) {
+				await cursor.update(p);
 			}
 		}
 	}

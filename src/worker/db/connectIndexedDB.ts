@@ -73,6 +73,23 @@ const connectIndexedDB = async <DBTypes>({
 
 	const quotaErrorMessage = `browser isn't letting the game store any more data!<br><br>Try <a href="/">deleting some old leagues</a> or deleting old data (Tools > Delete Old Data within a league). Clearing space elsewhere on your hard drive might help too. <a href="https://${WEBSITE_ROOT}/manual/debugging/quota-errors/"><b>Read this for more info.</b></a>`;
 
+	// Which store/index a failed request was operating on, for error messages.
+	// The error event target is the IDBRequest; its source is the store, index,
+	// or cursor it ran against.
+	const describeSource = (target: any) => {
+		try {
+			const source = target?.source;
+			if (!source) {
+				return "";
+			}
+			const storeName =
+				source.name ?? source.objectStore?.name ?? source.source?.name;
+			return storeName ? ` (store: ${storeName})` : "";
+		} catch {
+			return "";
+		}
+	};
+
 	db.addEventListener("abort", (event: any) => {
 		console.log(`${name} database abort event`, event.target.error);
 
@@ -83,7 +100,7 @@ const connectIndexedDB = async <DBTypes>({
 		) {
 			text = `Your ${quotaErrorMessage}`;
 		} else if (event.target.error) {
-			text = `${name} database abort event: ${event.target.error.message}<br><br>Maybe your ${quotaErrorMessage}`;
+			text = `${name} database abort event: ${event.target.error.message}${describeSource(event.target)}<br><br>Maybe your ${quotaErrorMessage}`;
 		}
 
 		if (text && !stopBecauseDebounce(text)) {
@@ -105,9 +122,9 @@ const connectIndexedDB = async <DBTypes>({
 		if (event.target.error) {
 			let text: string;
 			if (event.target.error.message.includes("abort")) {
-				text = `${name} database error event: ${event.target.error.message}<br><br>Maybe your ${quotaErrorMessage}`;
+				text = `${name} database error event: ${event.target.error.message}${describeSource(event.target)}<br><br>Maybe your ${quotaErrorMessage}`;
 			} else {
-				text = `${name} database error event: ${event.target.error.message}`;
+				text = `${name} database error event: ${event.target.error.message}${describeSource(event.target)}`;
 			}
 
 			if (!stopBecauseDebounce(text)) {

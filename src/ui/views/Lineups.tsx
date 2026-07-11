@@ -42,10 +42,10 @@ const labelForState = (
 ): string => {
 	const n = selectedPlayers.length;
 	if (onPids.length === n) {
-		return n === 2 ? "Both ON" : `All ${n} ON`;
+		return n === 1 ? "ON" : n === 2 ? "Both ON" : `All ${n} ON`;
 	}
 	if (onPids.length === 0) {
-		return n === 2 ? "Both OFF" : "All OFF";
+		return n === 1 ? "OFF" : n === 2 ? "Both OFF" : "All OFF";
 	}
 	const names = selectedPlayers
 		.filter((p) => onPids.includes(p.pid))
@@ -299,7 +299,7 @@ const Lineups = ({
 							? `Maximum ${MAX_ON_OFF_PLAYERS} players`
 							: "No matching players"
 					}
-					placeholder={`Select 2-${MAX_ON_OFF_PLAYERS} players...`}
+					placeholder={`Select 1-${MAX_ON_OFF_PLAYERS} players...`}
 					// Render the menu in a portal above the sticky DataTable cells,
 					// which otherwise paint over it and swallow clicks on options.
 					menuPortalTarget={document.body}
@@ -316,7 +316,7 @@ const Lineups = ({
 				</div>
 			</div>
 
-			{selectedPlayers.length >= 2 ? (
+			{selectedPlayers.length >= 1 ? (
 				<OnOffSummary lineups={lineups} selectedPlayers={selectedPlayers} />
 			) : null}
 

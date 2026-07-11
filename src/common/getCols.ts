@@ -915,6 +915,18 @@ const sportSpecificCols = bySport<{
 			sortType: "number",
 			title: "Cltch",
 		},
+		"rating:popularity": {
+			desc: "Popularity",
+			sortSequence: ["desc", "asc"],
+			sortType: "number",
+			title: "Pop",
+		},
+		"rating:charisma": {
+			desc: "Charisma (innate, drives popularity)",
+			sortSequence: ["desc", "asc"],
+			sortType: "number",
+			title: "Cha",
+		},
 		"rating:diq": {
 			desc: "Defensive IQ",
 			sortSequence: ["desc", "asc"],
@@ -3594,6 +3606,12 @@ const cols: {
 		sortType: "number",
 	},
 	Strategy: {},
+	"System Fit": {
+		title: "Fit",
+		desc: "How well the player's style fits the coach's system",
+		sortSequence: ["desc", "asc"],
+		sortType: "number",
+	},
 	T: {
 		desc: "Ties",
 		sortSequence: ["desc", "asc"],

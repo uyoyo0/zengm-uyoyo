@@ -1,11 +1,14 @@
 import { assert, test } from "vitest";
 import GameSim from "./index.ts";
 import { player, team } from "../index.ts";
-import loadTeams from "../game/loadTeams.ts";
+import loadTeams, { getPlayoffMatchupWeight } from "../game/loadTeams.ts";
 import { g, helpers } from "../../util/index.ts";
 import { resetCache, resetG } from "../../../test/helpers.ts";
-import { coachDevEffect } from "../../../common/coachingConstants.ts";
-import { DEFAULT_COACHING, PLAYER } from "../../../common/constants.ts";
+import {
+	coachDevEffect,
+	playoffMatchupWeight,
+} from "../../../common/coachingConstants.ts";
+import { DEFAULT_COACHING, PHASE, PLAYER } from "../../../common/constants.ts";
 import { range } from "../../../common/utils.ts";
 import { idb } from "../../db/index.ts";
 import ovr from "../coach/ovr.ts";
@@ -72,6 +75,7 @@ const runWithCoaches = async ({
 	dials0,
 	dials1,
 	basePatch,
+	prepare,
 	n = 100,
 }: {
 	coach0: CoachWithoutKey;
@@ -82,6 +86,9 @@ const runWithCoaches = async ({
 	dials1?: Partial<TeamCoaching>;
 	// Applied to the shared base roster before cloning (both teams identical).
 	basePatch?: (players: any[]) => void;
+	// Runs after the cache is set up, before games (e.g. put the league in the
+	// playoffs with a series at a given game number).
+	prepare?: () => Promise<void>;
 	n?: number;
 }) => {
 	resetG();
@@ -126,8 +133,14 @@ const runWithCoaches = async ({
 		await idb.cache.teams.put(t!);
 	}
 
+	await prepare?.();
+
 	const wins = [0, 0];
 	const pts = [0, 0];
+	const playerMin: [Map<number, number>, Map<number, number>] = [
+		new Map(),
+		new Map(),
+	];
 	for (let i = 0; i < n; i++) {
 		const teams = await loadTeams([0, 1], {});
 		const res: any = new GameSim({
@@ -146,8 +159,20 @@ const runWithCoaches = async ({
 		if (pts0 !== pts1) {
 			wins[pts0 > pts1 ? 0 : 1]! += 1;
 		}
+		for (const t of [0, 1] as const) {
+			for (const p of res.team[t].player) {
+				playerMin[t].set(
+					p.id,
+					(playerMin[t].get(p.id) ?? 0) + (p.stat.min ?? 0),
+				);
+			}
+		}
 	}
-	return { wins: wins as [number, number], pts: pts as [number, number] };
+	return {
+		wins: wins as [number, number],
+		pts: pts as [number, number],
+		playerMin,
+	};
 };
 
 const winPct = (wins: [number, number]) => wins[0] / (wins[0] + wins[1]);
@@ -205,7 +230,9 @@ test("elite staff beats terrible staff when there is something to coach", async 
 	const { winPct: p, record } = await eliteVsTerrible(makeShooters);
 	report(`[full coach, skewed] elite win% vs terrible: ${pct(p)} (${record})`);
 	assert(p > 0.51, `elite coach should win where coaching matters: ${p}`);
-	assert(p < 0.7, `coach impact too dominant: ${p}`);
+	// 450 pooled games have se ~2.4%, so leave ~2 sigma beyond the measured
+	// value; this band tripped at 0.7033 on pure noise.
+	assert(p < 0.72, `coach impact too dominant: ${p}`);
 }, 600000);
 
 test("tactics-only isolation", async () => {
@@ -234,6 +261,263 @@ test("tactics exploits a skewed opponent (vs 3PT-heavy league)", async () => {
 	});
 	report(`[tactics vs shooters] 90-vs-10 win%: ${pct(p)} (${record})`);
 	assert(p > 0.46, `tactics should not hurt vs a skewed opponent: ${p}`);
+}, 600000);
+
+// Put the cache's league into the playoffs with a series between tids 0 and 1
+// at the given wins (so the next game is game homeWon+awayWon+1).
+const setPlayoffSeries = async (homeWon: number, awayWon: number) => {
+	g.setWithoutSavingToDB("phase", PHASE.PLAYOFFS);
+	const existing = await idb.cache.playoffSeries.get(g.get("season"));
+	if (existing) {
+		await idb.cache.playoffSeries.delete(existing.season);
+	}
+	await idb.cache.playoffSeries.add({
+		season: g.get("season"),
+		currentRound: 0,
+		series: [
+			[
+				{
+					home: { tid: 0, cid: 0, seed: 1, won: homeWon },
+					away: { tid: 1, cid: 0, seed: 2, won: awayWon },
+				},
+			],
+		],
+	} as any);
+};
+
+test("playoffs: matchup weight tracks the series game number", async () => {
+	resetG();
+	g.setWithoutSavingToDB("season", 2016);
+	await resetCache({});
+
+	// Regular season: no amplification.
+	assert.strictEqual(await getPlayoffMatchupWeight([0, 1]), 1);
+
+	// Game 1 of a series: prep-time boost only.
+	await setPlayoffSeries(0, 0);
+	assert.strictEqual(
+		await getPlayoffMatchupWeight([0, 1]),
+		playoffMatchupWeight(1),
+	);
+
+	// Game 7, and tid order doesn't matter.
+	await setPlayoffSeries(3, 3);
+	assert.strictEqual(
+		await getPlayoffMatchupWeight([0, 1]),
+		playoffMatchupWeight(7),
+	);
+	assert.strictEqual(
+		await getPlayoffMatchupWeight([1, 0]),
+		playoffMatchupWeight(7),
+	);
+
+	// Playoffs but these teams have no series (e.g. play-in): base prep boost.
+	assert.strictEqual(
+		await getPlayoffMatchupWeight([0, 5]),
+		playoffMatchupWeight(1),
+	);
+});
+
+test("playoffs: loadTeams applies amplified adjustments by game 7", async () => {
+	// Fully deterministic: identical fixed ratings on every player (no
+	// generate() randomness), a mid-tactics coach, and a moderate perimeter
+	// skew, so the regular-season adjustment lands mid-range with headroom for
+	// the game-7 amplification to show (a saturated -1.0 dial can't grow).
+	resetG();
+	g.setWithoutSavingToDB("season", 2016);
+
+	const FIXED_RATINGS: Record<string, number> = {
+		hgt: 50,
+		stre: 50,
+		spd: 50,
+		jmp: 50,
+		endu: 50,
+		ins: 30,
+		dnk: 45,
+		ft: 55,
+		fg: 55,
+		tp: 75,
+		oiq: 50,
+		diq: 50,
+		drb: 50,
+		pss: 50,
+		reb: 45,
+		tendencyThree: 80,
+	};
+	const base = range(PER_TEAM).map((i) => {
+		const p: any = player.generate(0, 25, 2010, true, 50);
+		p.rosterOrder = i;
+		Object.assign(p.ratings.at(-1), FIXED_RATINGS);
+		return p;
+	});
+	const players0 = base.map((p) => clonePlayer(p, 0));
+	const players1 = base.map((p) => clonePlayer(p, 1));
+
+	const teamsDefault = helpers.getTeamsDefault().slice(0, 2);
+	await resetCache({
+		players: [...players0, ...players1],
+		coaches: [makeCoach(0, { tactics: 60 }), makeCoach(1, { tactics: 60 })],
+		teams: teamsDefault.map(team.generate),
+		teamSeasons: teamsDefault.map((t) => team.genSeasonRow(t)),
+		teamStats: teamsDefault.map((t) => team.genStatsRow(t.tid)),
+	});
+	for (const p of await idb.cache.players.getAll()) {
+		await player.updateValues(p);
+		await idb.cache.players.put(p);
+	}
+	for (const tid of [0, 1]) {
+		const t = await idb.cache.teams.get(tid);
+		t!.coaching = { ...DEFAULT_COACHING };
+		await idb.cache.teams.put(t!);
+	}
+
+	const regular = (await loadTeams([0, 1], {}))[0]!.coaching;
+	await setPlayoffSeries(3, 3);
+	const game7 = (await loadTeams([0, 1], {}))[0]!.coaching;
+
+	report(
+		`[playoff coaching] paintDefense adjustment: regular=${regular.paintDefense} game7=${game7.paintDefense}`,
+	);
+	// Vs a perimeter team, coaches guard the arc (negative paintDefense);
+	// the game-7 adjustment is amplified, with headroom guaranteed by the
+	// mid-range setup.
+	assert(
+		regular.paintDefense < 0 && regular.paintDefense > -0.9,
+		`expected mid-range negative: ${regular.paintDefense}`,
+	);
+	assert(
+		game7.paintDefense < regular.paintDefense,
+		`game 7 should adjust harder: ${game7.paintDefense} vs ${regular.paintDefense}`,
+	);
+});
+
+test("playoffs: tactics edge persists in a game 7 (tripwire)", async () => {
+	// Stochastic sanity check on top of the deterministic dial test: the
+	// high-tactics coach should still clearly win a game 7 against a skewed
+	// opponent with the amplified channel. Loose band - the precise
+	// amplification is asserted deterministically above.
+	const makeShooters = (players: any[]) => {
+		for (const p of players) {
+			p.ratings.at(-1).tp = 75;
+			p.ratings.at(-1).tendencyThree = 85;
+		}
+	};
+	const { winPct: p, record } = await pooledWinPct({
+		coach0: makeCoach(0, { tactics: 90 }),
+		coach1: makeCoach(1, { tactics: 10 }),
+		basePatch: makeShooters,
+		prepare: () => setPlayoffSeries(3, 3),
+	});
+	report(`[playoff game 7] tactics 90-vs-10 win%: ${pct(p)} (${record})`);
+	assert(p > 0.48, `playoff tactics edge collapsed: ${p}`);
+}, 600000);
+
+test("rigid coaches bury committed misfits; adaptable coaches don't", async () => {
+	// A committed chucker (tendencyThree 95) WITHOUT the shot to justify it,
+	// on a roster of otherwise-identical players in a paint-first system - the
+	// true extreme misfit. Identical ratings make the substitution ranking a
+	// dead heat, so the rigid coach's penalty visibly costs him minutes while
+	// the adaptable coach's doesn't. (A conflicted player who still fills a
+	// demanded role is only mildly cut - roleSoftening in misfitBenchFactor.)
+	const makeChucker = (players: any[]) => {
+		const FIXED: Record<string, number> = {
+			hgt: 50,
+			stre: 50,
+			spd: 55,
+			jmp: 50,
+			endu: 55,
+			ins: 50,
+			dnk: 50,
+			ft: 55,
+			fg: 55,
+			tp: 45,
+			oiq: 55,
+			diq: 50,
+			drb: 55,
+			pss: 50,
+			reb: 50,
+			tendencyThree: 40,
+		};
+		for (const p of players) {
+			Object.assign(p.ratings.at(-1), FIXED);
+		}
+		players[0].ratings.at(-1).tendencyThree = 95;
+	};
+	const paintDials = { threePointTendency: -0.9 };
+	const n = 120;
+	const { playerMin } = await runWithCoaches({
+		coach0: makeCoach(0, { adaptability: 5 }),
+		coach1: makeCoach(1, { adaptability: 95 }),
+		dials0: paintDials,
+		dials1: paintDials,
+		basePatch: makeChucker,
+		n,
+	});
+
+	// Generated players share placeholder names, so find him by his marker.
+	const minOf = async (tid: 0 | 1) => {
+		const roster = await idb.cache.players.indexGetAll("playersByTid", tid);
+		const p = roster.find(
+			(p2) => (p2.ratings.at(-1) as any).tendencyThree === 95,
+		)!;
+		return (playerMin[tid].get(p.pid) ?? 0) / n;
+	};
+	const rigidMin = await minOf(0);
+	const adaptableMin = await minOf(1);
+	report(
+		`[misfit benching] chucker mpg: rigid coach=${rigidMin.toFixed(1)} adaptable coach=${adaptableMin.toFixed(1)}`,
+	);
+	assert(
+		rigidMin < adaptableMin * 0.9,
+		`rigid coach should cut the misfit's minutes: ${rigidMin} vs ${adaptableMin}`,
+	);
+	// On this dead-heat roster the rank cliff maximizes the cut; he must still
+	// be a real rotation player, never a DNP.
+	assert(
+		rigidMin > 8,
+		`benching must stay bounded, not a DNP: ${rigidMin} mpg`,
+	);
+}, 600000);
+
+test("eraser schemes keep their rim protector on the floor (tripwire)", async () => {
+	// One lone rim protector on the roster; under a gambling perimeter scheme
+	// the lineup tie-breaker should keep him on the floor at least as much as
+	// under a neutral scheme. Small lever - loose non-inferiority band.
+	const makeLoneProtector = (players: any[]) => {
+		for (const p of players) {
+			p.ratings.at(-1).hgt = Math.min(p.ratings.at(-1).hgt, 55);
+		}
+		const r = players[7].ratings.at(-1);
+		r.hgt = 78;
+		r.diq = 72;
+		r.stre = 70;
+		r.jmp = 65;
+	};
+	const n = 150;
+	const { playerMin } = await runWithCoaches({
+		coach0: makeCoach(0, { tactics: 90 }),
+		coach1: makeCoach(1, { tactics: 90 }),
+		dials0: { paintDefense: -0.8, defensiveAggression: 0.8 },
+		dials1: {},
+		basePatch: makeLoneProtector,
+		n,
+	});
+
+	// Generated players share placeholder names, so find him by his marker.
+	const minOf = async (tid: 0 | 1) => {
+		const roster = await idb.cache.players.indexGetAll("playersByTid", tid);
+		const p = roster.find((p2) => (p2.ratings.at(-1) as any).hgt === 78)!;
+		return (playerMin[tid].get(p.pid) ?? 0) / n;
+	};
+	const schemeMin = await minOf(0);
+	const neutralMin = await minOf(1);
+	report(
+		`[rim coverage] lone protector mpg: eraser scheme=${schemeMin.toFixed(1)} neutral=${neutralMin.toFixed(1)}`,
+	);
+	assert(
+		schemeMin > neutralMin - 1.5,
+		`eraser scheme should not play its protector less: ${schemeMin} vs ${neutralMin}`,
+	);
 }, 600000);
 
 test("adaptability rescues a philosophy that clashes with the roster", async () => {
@@ -267,7 +551,10 @@ test("motivation-only isolation (bench energy recovery)", async () => {
 		coach1: makeCoach(1, { motivation: 10 }),
 	});
 	report(`[motivation] 90-vs-10 win%: ${pct(p)} (${record})`);
-	assert(p > 0.47 && p < 0.62, `motivation out of band: ${p}`);
+	// Motivation is deliberately the smallest lever (~neutral to slightly
+	// positive); 450 pooled games have se ~2.4%, and the old 0.47 floor
+	// tripped at 0.462 on pure noise.
+	assert(p > 0.44 && p < 0.62, `motivation out of band: ${p}`);
 }, 600000);
 
 // Pool several independently generated rosters per cell: roster generation

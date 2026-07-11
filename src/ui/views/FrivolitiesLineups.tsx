@@ -108,7 +108,7 @@ const FrivolitiesLineups = (props: View<"frivolitiesLineups">) => {
 	} else if (props.mode === "duo") {
 		cols = [
 			num("#"),
-			{ title: "Duo" },
+			{ title: props.comboLabel ?? "Duo" },
 			{ title: "Team", desc: "Most recent team together" },
 			num("Seasons"),
 			num("Last Season"),
@@ -123,6 +123,36 @@ const FrivolitiesLineups = (props: View<"frivolitiesLineups">) => {
 				teamCell(duo.abbrev, duo.tid),
 				duo.numSeasons,
 				duo.lastSeason,
+				Math.round(duo.min),
+				netCell(duo.net),
+			],
+			classNames: {
+				"table-info": duo.tid === props.userTid,
+			},
+		}));
+	} else if (props.mode === "seasonDuo") {
+		cols = [
+			num("#"),
+			{ title: "Duo" },
+			{ title: "Team" },
+			num("Season"),
+			num("MIN", "Minutes"),
+			num("Net", "Net points per 100 possessions together"),
+		];
+		rows = props.rows.map((duo, i) => ({
+			key: i,
+			data: [
+				i + 1,
+				playersCell(duo.players),
+				teamCell(duo.abbrev, duo.tid, duo.season),
+				{
+					value: (
+						<a href={helpers.leagueUrl(["history", duo.season])}>
+							{duo.season}
+						</a>
+					),
+					sortValue: duo.season,
+				},
 				Math.round(duo.min),
 				netCell(duo.net),
 			],

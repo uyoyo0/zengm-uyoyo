@@ -35,6 +35,7 @@ const rows = bySport<
 					"tendencyClutch",
 				],
 			},
+			{ Fame: ["popularity", "charisma"] },
 		],
 	],
 	football: [

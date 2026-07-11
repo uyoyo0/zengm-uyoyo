@@ -1,5 +1,8 @@
 import { assert, describe, test } from "vitest";
-import developCoach, { shouldRetire } from "./develop.ts";
+import developCoach, {
+	playoffExperienceNudge,
+	shouldRetire,
+} from "./develop.ts";
 import ovr from "./ovr.ts";
 import type { Coach } from "../../../common/types.ts";
 
@@ -104,6 +107,80 @@ describe("developCoach", () => {
 		);
 		assert(mean > 40 && mean < 65, `pool mean ovr drifted: ${mean}`);
 		assert(sd > 5 && sd < 25, `pool ovr sd out of range: ${sd}`);
+	});
+});
+
+describe("playoffExperienceNudge", () => {
+	const seasonsRow = (season: number, playoffRoundsWon?: number) => ({
+		season,
+		tid: 0,
+		won: 45,
+		lost: 37,
+		expectedWins: 41,
+		playoffRoundsWon,
+	});
+
+	test("deep runs boost, sustained misses drag, first-round exits neutral", () => {
+		const finalsCoach = {
+			seasons: [seasonsRow(2017, 3), seasonsRow(2018, 3), seasonsRow(2019, 3)],
+		};
+		assert.strictEqual(playoffExperienceNudge(finalsCoach, 2020), 0.6);
+
+		const lottery = {
+			seasons: [
+				seasonsRow(2017, -1),
+				seasonsRow(2018, -1),
+				seasonsRow(2019, -1),
+			],
+		};
+		assert.strictEqual(playoffExperienceNudge(lottery, 2020), -0.2);
+
+		const firstRound = {
+			seasons: [seasonsRow(2017, 0), seasonsRow(2018, 0), seasonsRow(2019, 0)],
+		};
+		assert.strictEqual(playoffExperienceNudge(firstRound, 2020), 0);
+	});
+
+	test("no recent coached seasons or missing playoff data means no nudge", () => {
+		assert.strictEqual(playoffExperienceNudge({ seasons: [] }, 2020), 0);
+		assert.strictEqual(playoffExperienceNudge({}, 2020), 0);
+		// Old rows without playoff data (pre-migration) don't count as misses.
+		const legacy = { seasons: [seasonsRow(2019, undefined)] };
+		assert.strictEqual(playoffExperienceNudge(legacy, 2020), 0);
+		// Only the recent window counts.
+		const ancient = { seasons: [seasonsRow(2010, 3)] };
+		assert.strictEqual(playoffExperienceNudge(ancient, 2020), 0);
+	});
+
+	test("nudge lands on tactics and adaptability, not development", () => {
+		const trials = 400;
+		const meanKeyDelta = (
+			playoffRoundsWon: number,
+			key: "tactics" | "development",
+		) => {
+			let total = 0;
+			for (let i = 0; i < trials; i++) {
+				const c = makeCoach(50); // plateau age: base drift ~+0.4
+				c.seasons = [
+					seasonsRow(2017, playoffRoundsWon),
+					seasonsRow(2018, playoffRoundsWon),
+					seasonsRow(2019, playoffRoundsWon),
+				];
+				const before = c.ratings[key];
+				developCoach(c, 2020);
+				total += c.ratings[key] - before;
+			}
+			return total / trials;
+		};
+
+		// Expected gap between finals runs (+0.6) and misses (-0.3) is 0.9/yr on
+		// tactics; noise sigma is 1.8, so 400 trials gives se ~0.13 per mean.
+		const tacticsGap = meanKeyDelta(3, "tactics") - meanKeyDelta(-1, "tactics");
+		assert(tacticsGap > 0.4, `tactics gap too small: ${tacticsGap}`);
+
+		const devGap =
+			meanKeyDelta(3, "development") - meanKeyDelta(-1, "development");
+		assert(Math.abs(devGap) < 0.45, `development should be unaffected: ${devGap}`);
 	});
 });
 

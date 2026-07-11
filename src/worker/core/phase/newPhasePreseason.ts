@@ -17,8 +17,12 @@ import { g, helpers, local, logEvent, toUI } from "../../util/index.ts";
 import type {
 	Conditions,
 	PhaseReturn,
+	TeamCoaching,
 	TeamSeason,
 } from "../../../common/types.ts";
+import { playerCoachFit } from "../coach/style.ts";
+import { driftUsageTendency } from "../player/genTendencies.basketball.ts";
+import { fitAdjustedCoachingLevel } from "../../../common/coachingConstants.ts";
 import { groupByUnique, maxBy } from "../../../common/utils.ts";
 import { applyRealTeamInfo } from "../../../common/applyRealTeamInfo.ts";
 import getRealTeamInfo from "../../util/getRealTeamInfo.ts";
@@ -248,6 +252,11 @@ const newPhasePreseason = async (
 	// drive player development from the coach's development rating (basketball).
 	// Other sports keep using the team's coaching budget level.
 	const coachingLevels: Record<number, number> = {};
+	// Each team's effective style dials, for the per-player system-fit
+	// development adjustment. Read fresh after updateTeamCoaching runs.
+	const teamCoachingByTid = new Map<number, TeamCoaching>();
+	const coachAdaptabilityByTid = new Map<number, number>();
+	const coachTacticsByTid = new Map<number, number>();
 	if (isSport("basketball")) {
 		await coach.processCoachMarket(conditions);
 		await coach.updateTeamCoaching();
@@ -255,9 +264,20 @@ const newPhasePreseason = async (
 		const developmentByTid = new Map(
 			coaches.map((c) => [c.tid, c.ratings.development]),
 		);
+		for (const c of coaches) {
+			if (c.tid >= 0) {
+				coachAdaptabilityByTid.set(c.tid, c.ratings.adaptability);
+				coachTacticsByTid.set(c.tid, c.ratings.tactics);
+			}
+		}
 		for (const t of teams) {
 			// Coachless team = neutral coach (dev 50), not the budget-level default.
 			coachingLevels[t.tid] = developmentByTid.get(t.tid) ?? 50;
+		}
+		for (const t of await idb.cache.teams.getAll()) {
+			if (t.coaching) {
+				teamCoachingByTid.set(t.tid, t.coaching);
+			}
 		}
 	} else {
 		for (const t of teams) {
@@ -355,6 +375,24 @@ const newPhasePreseason = async (
 		}
 	}
 
+	// Context for the preseason popularity update (basketball): last season's
+	// playoff results, built once instead of per player.
+	const popularityContext = {
+		lastSeason: newSeason - 1,
+		numGames: g.get("numGames"),
+		playoffRoundsWonByTid: new Map<number, number>(),
+		numPlayoffRounds: g.get("numGamesPlayoffSeries", newSeason - 1).length,
+	};
+	if (isSport("basketball")) {
+		const lastTeamSeasons = await idb.cache.teamSeasons.indexGetAll(
+			"teamSeasonsBySeasonTid",
+			[[newSeason - 1], [newSeason - 1, "Z"]],
+		);
+		for (const ts of lastTeamSeasons) {
+			popularityContext.playoffRoundsWonByTid.set(ts.tid, ts.playoffRoundsWon);
+		}
+	}
+
 	// Loop through all non-retired players
 	for (const p of players) {
 		if (isSport("hockey") && p.numConsecutiveGamesG !== undefined) {
@@ -396,7 +434,40 @@ const newPhasePreseason = async (
 		} else {
 			// Update ratings
 			player.addRatingsRow(p, scoutingLevel);
-			await player.develop(p, 1, false, coachingLevels[p.tid]);
+
+			// System fit tweaks how much this player gets out of the coach:
+			// good-fit players develop as if the coach's development rating were
+			// a bit higher, bad-fit a bit lower.
+			let coachingLevel = coachingLevels[p.tid];
+			const teamCoaching = teamCoachingByTid.get(p.tid);
+			if (teamCoaching && coachingLevel !== undefined) {
+				const ratings = p.ratings.at(-1);
+				if (ratings) {
+					const fit = playerCoachFit(
+						ratings as any,
+						teamCoaching,
+						coachAdaptabilityByTid.get(p.tid) ?? 50,
+					);
+					coachingLevel = fitAdjustedCoachingLevel(coachingLevel, fit);
+				}
+			}
+			await player.develop(p, 1, false, coachingLevel);
+
+			// Fan popularity for the new season, from last season's play.
+			if (isSport("basketball")) {
+				player.updatePopularity(p, popularityContext);
+
+				// Usage identity drifts toward what current skills imply, paced by
+				// the coach's tactics - breakout players grow into featured roles,
+				// aging stars cede possessions.
+				const ratings = p.ratings.at(-1);
+				if (ratings) {
+					driftUsageTendency(
+						ratings as any,
+						coachTacticsByTid.get(p.tid) ?? 50,
+					);
+				}
+			}
 		}
 
 		if (

@@ -216,6 +216,9 @@ export const RatingsOverview = ({
 					{ label: "Clutch", rating: "tendencyClutch" },
 				],
 			},
+			{
+				Fame: [{ label: "Popularity", rating: "popularity" }],
+			},
 		],
 		football: [
 			{
