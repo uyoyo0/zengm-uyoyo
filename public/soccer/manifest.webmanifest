@@ -1,0 +1,19 @@
+{
+	"short_name": "Soccer GM",
+	"name": "Soccer GM",
+	"icons": [
+		{
+			"src": "/ico/icon.svg",
+			"type": "image/svg+xml",
+			"sizes": "any",
+			"purpose": "any maskable"
+		}
+	],
+	"start_url": "/?utm_source=a2hs",
+	"id": "/?utm_source=a2hs",
+	"background_color": "#102a1c",
+	"display": "standalone",
+	"scope": "/",
+	"theme_color": "#198754",
+	"description": "A single-player soccer management simulation with transfers, tactics, cups, and promotion and relegation."
+}

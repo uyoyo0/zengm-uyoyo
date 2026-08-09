@@ -325,7 +325,10 @@ const processAttrs = (
 					)} pick in the ${draftName}`;
 				} else if (transaction.type === "freeAgent") {
 					output.latestTransaction = `Free agent signing in ${transaction.season}`;
-				} else if (transaction.type === "trade") {
+				} else if (
+					transaction.type === "trade" ||
+					transaction.type === "transfer"
+				) {
 					let abbrev;
 					try {
 						abbrev =
@@ -349,7 +352,7 @@ const processAttrs = (
 									`${abbrev}_${transaction.fromTid}`,
 									transaction.season,
 								]);
-					output.latestTransaction = `Trade with <a href="${url}">${abbrev} in ${transaction.season}</a>`;
+					output.latestTransaction = `${transaction.type === "transfer" ? "Transferred from" : "Trade with"} <a href="${url}">${abbrev} in ${transaction.season}</a>`;
 				} else if (transaction.type === "godMode") {
 					output.latestTransaction = `God Mode in ${transaction.season}`;
 				} else if (transaction.type === "import") {
@@ -1427,7 +1430,9 @@ const getCopies = async (
 				const transaction = getLatestTransaction(p.transactions, season, tid);
 				if (
 					transaction &&
-					(transaction.type === "trade" || transaction.type === "sisyphus")
+					(transaction.type === "trade" ||
+						transaction.type === "transfer" ||
+						transaction.type === "sisyphus")
 				) {
 					abbrevsCache.add(transaction.season, transaction.fromTid);
 				}

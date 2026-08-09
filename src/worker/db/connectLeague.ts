@@ -49,6 +49,11 @@ import type {
 	SavedTradingBlock,
 	Coach,
 	Lineup,
+	SoccerAssociation,
+	SoccerCompetition,
+	SoccerCompetitionSeason,
+	SoccerCompetitionTeamSeason,
+	SoccerTransferOffer,
 } from "../../common/types.ts";
 import getInitialNumGamesConfDivSettings from "../core/season/getInitialNumGamesConfDivSettings.ts";
 import { amountToLevel } from "../../common/budgetLevels.ts";
@@ -164,6 +169,42 @@ export interface LeagueDB extends DBSchema {
 	savedTradingBlock: {
 		key: 0;
 		value: SavedTradingBlock;
+	};
+	soccerAssociations: {
+		key: string;
+		value: SoccerAssociation;
+	};
+	soccerCompetitions: {
+		key: string;
+		value: SoccerCompetition;
+	};
+	soccerCompetitionSeasons: {
+		key: string;
+		value: SoccerCompetitionSeason;
+		indexes: {
+			season: number;
+			compId: string;
+		};
+	};
+	soccerCompetitionTeamSeasons: {
+		key: string;
+		value: SoccerCompetitionTeamSeason;
+		indexes: {
+			season: number;
+			compId: string;
+			tid: number;
+		};
+	};
+	soccerTransferOffers: {
+		key: number;
+		value: SoccerTransferOffer & { offerId: number };
+		autoIncrementKeyPath: "offerId";
+		indexes: {
+			pid: number;
+			buyingTid: number;
+			sellingTid: number;
+			status: string;
+		};
 	};
 	schedule: {
 		key: number;
@@ -689,6 +730,30 @@ const create = (db: IDBPDatabase<LeagueDB>) => {
 	db.createObjectStore("savedTradingBlock", {
 		keyPath: "rid",
 	});
+
+	db.createObjectStore("soccerAssociations", { keyPath: "aid" });
+	db.createObjectStore("soccerCompetitions", { keyPath: "compId" });
+	const soccerCompetitionSeasons = db.createObjectStore(
+		"soccerCompetitionSeasons",
+		{ keyPath: "key" },
+	);
+	soccerCompetitionSeasons.createIndex("season", "season");
+	soccerCompetitionSeasons.createIndex("compId", "compId");
+	const soccerCompetitionTeamSeasons = db.createObjectStore(
+		"soccerCompetitionTeamSeasons",
+		{ keyPath: "key" },
+	);
+	soccerCompetitionTeamSeasons.createIndex("season", "season");
+	soccerCompetitionTeamSeasons.createIndex("compId", "compId");
+	soccerCompetitionTeamSeasons.createIndex("tid", "tid");
+	const soccerTransferOffers = db.createObjectStore("soccerTransferOffers", {
+		keyPath: "offerId",
+		autoIncrement: true,
+	});
+	soccerTransferOffers.createIndex("pid", "pid");
+	soccerTransferOffers.createIndex("buyingTid", "buyingTid");
+	soccerTransferOffers.createIndex("sellingTid", "sellingTid");
+	soccerTransferOffers.createIndex("status", "status");
 };
 
 const migrate = async ({
@@ -1911,6 +1976,40 @@ const migrate = async ({
 			if (seedPopularity(p)) {
 				await cursor.update(p);
 			}
+		}
+	}
+
+	if (oldVersion < 80) {
+		if (!db.objectStoreNames.contains("soccerAssociations")) {
+			db.createObjectStore("soccerAssociations", { keyPath: "aid" });
+		}
+		if (!db.objectStoreNames.contains("soccerCompetitions")) {
+			db.createObjectStore("soccerCompetitions", { keyPath: "compId" });
+		}
+		if (!db.objectStoreNames.contains("soccerCompetitionSeasons")) {
+			const store = db.createObjectStore("soccerCompetitionSeasons", {
+				keyPath: "key",
+			});
+			store.createIndex("season", "season");
+			store.createIndex("compId", "compId");
+		}
+		if (!db.objectStoreNames.contains("soccerCompetitionTeamSeasons")) {
+			const store = db.createObjectStore("soccerCompetitionTeamSeasons", {
+				keyPath: "key",
+			});
+			store.createIndex("season", "season");
+			store.createIndex("compId", "compId");
+			store.createIndex("tid", "tid");
+		}
+		if (!db.objectStoreNames.contains("soccerTransferOffers")) {
+			const store = db.createObjectStore("soccerTransferOffers", {
+				keyPath: "offerId",
+				autoIncrement: true,
+			});
+			store.createIndex("pid", "pid");
+			store.createIndex("buyingTid", "buyingTid");
+			store.createIndex("sellingTid", "sellingTid");
+			store.createIndex("status", "status");
 		}
 	}
 

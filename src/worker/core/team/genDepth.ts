@@ -4,6 +4,7 @@ import type { Position } from "../../../common/types.football.ts";
 import genDepthBaseball from "./genDepth.baseball.ts";
 import genDepthFootball from "./genDepth.football.ts";
 import genDepthHockey from "./genDepth.hockey.ts";
+import genDepthSoccer from "./genDepth.soccer.ts";
 
 const genDepth = async (
 	players: Player[],
@@ -41,6 +42,9 @@ const genDepth = async (
 				D: [],
 				G: [],
 			},
+			soccer: {
+				GK: [], CB: [], LB: [], RB: [], DM: [], CM: [], AM: [], LW: [], RW: [], ST: [],
+			},
 		});
 	}
 
@@ -49,6 +53,7 @@ const genDepth = async (
 		basketball: undefined as any,
 		football: genDepthFootball,
 		hockey: genDepthHockey,
+		soccer: genDepthSoccer,
 	})?.(
 		players,
 		initialDepth as any,

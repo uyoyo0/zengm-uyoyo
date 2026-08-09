@@ -2,6 +2,7 @@ import RatingsStatsBaseball from "./RatingsStats.baseball.tsx";
 import RatingsStatsBasketball from "./RatingsStats.basketball.tsx";
 import RatingsStatsFootball from "./RatingsStats.football.tsx";
 import RatingsStatsHockey from "./RatingsStats.hockey.tsx";
+import RatingsStatsSoccer from "./RatingsStats.soccer.tsx";
 import { useLocal } from "../../util/local.ts";
 import { bySport } from "../../../common/sportFunctions.ts";
 
@@ -26,6 +27,10 @@ export const RatingsStats = (props: {
 			challengeNoRatings,
 		}),
 		hockey: RatingsStatsHockey({
+			...props,
+			challengeNoRatings,
+		}),
+		soccer: RatingsStatsSoccer({
 			...props,
 			challengeNoRatings,
 		}),

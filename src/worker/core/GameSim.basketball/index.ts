@@ -29,6 +29,10 @@ import {
 	TENDENCY_SHARE,
 	shareFromTendency,
 } from "../../../common/tendencyShares.basketball.ts";
+import {
+	ZONE_ACCURACY,
+	FT_ACCURACY,
+} from "../../../common/shotAccuracy.basketball.ts";
 
 const SHOT_CLOCK = 24;
 
@@ -58,8 +62,30 @@ const USAGE_SKILL_W = 0.6;
 // decision-point probabilities are scaled to hit the target share of total FGA.
 const THREE_ATTEMPT_CAL = 0.98; // 3P decision rate -> 3PA share of all FGA
 const RIM_MIX_CAL = 0.95; // at-rim decision weight (putbacks already add rim FGA)
+// Free-throw drawing. Real players carry ftrDraw = career FTA/FGA (an
+// absolute target, like the shot-mix tendencies); foulDrawFactor inverts it
+// into a per-shot foul multiplier given the player's shot mix, using the
+// expected FTs per shot decision by zone below (probMissAndFoul * FTs +
+// probAndOne, from the bases in getShotInfo). FTR_DRAW_CAL converts the
+// target rate to a foul factor and is measured with the effects harness so
+// realized FTA/FGA tracks the target league-wide.
+// Realized FT rate is mildly convex in the target (fouled misses shed FGA
+// from the denominator), so this slightly undershoots low targets to avoid
+// overshooting foul magnets.
+const FTR_DRAW_CAL = 1.65;
+const FT_PROPENSITY = {
+	three: 0.07,
+	atRim: 0.99,
+	lowPost: 0.81,
+	midRange: 0.19,
+};
+
 // Mild skill modulation of the 2P mix: weight multiplier is
 // MIX_SKILL_BASE + MIX_SKILL_W * compositeRating, ~1.0 at a typical 0.5 rating.
+// Only applied to players WITHOUT stats-derived (absolute) shot mixes - a
+// derived mix already encodes where the player actually shot from, so skewing
+// it further toward his best zone would double-count skill and inflate FG%.
+// Synergy still modulates everyone's mix.
 const MIX_SKILL_BASE = 0.6;
 const MIX_SKILL_W = 0.8;
 
@@ -186,6 +212,18 @@ type PlayerGameSim = {
 		// (absolute shares), so era scaling (threePointTendencyFactor) is skipped.
 		absolute: boolean;
 	};
+	// Per-zone accuracy corrections (probMake deltas vs the ratings model,
+	// from real career percentages). 0 for fictional players.
+	accuracies: {
+		atRim: number;
+		lowPost: number;
+		midRange: number;
+		three: number;
+		ft: number;
+	};
+	// Career FTA/FGA target for real players (absolute, like the shot-mix
+	// tendencies); undefined = fall back to the drawingFouls composite.
+	ftrDraw?: number;
 	hotHand: number; // in-game make/miss streak (-3..3), transient
 	// Bounded substitution-ranking penalty for extreme system misfits, set in
 	// loadTeams (1 = no penalty).
@@ -2139,16 +2177,20 @@ class GameSim extends GameSimBase {
 		// In some situations (4th quarter late game situations depending on score, and last second heaves in other quarters) players shoot more 3s
 		const diff = this.team[this.d].stat.pts - this.team[this.o].stat.pts;
 		const quarter = this.team[this.o].stat.ptsQtrs.length;
+		// End-of-period heave: the possession started in the backcourt with
+		// almost no time left, so any shot is a launch from way beyond the arc.
+		// Per the NBA's 2025-26 heave rule, a missed heave is charged as a TEAM
+		// FGA/3PA but stays off the shooter's stat line (a make counts 1-for-1),
+		// which is why players are willing to let them fly.
+		const heave =
+			this.t < 2 && this.possessionLength <= 3 && !this.sideOutOfBounds();
 		const forceThreePointer =
+			heave ||
 			(diff >= 3 &&
 				diff <= 10 &&
 				this.t <= 10 &&
 				quarter >= this.numPeriods &&
-				Math.random() > this.t / 60) ||
-			(quarter < this.numPeriods &&
-				this.t < 2 &&
-				this.possessionLength <= 3 &&
-				!this.sideOutOfBounds());
+				Math.random() > this.t / 60);
 
 		const rushed = this.t < 2 && this.possessionLength < 6;
 
@@ -2177,7 +2219,10 @@ class GameSim extends GameSimBase {
 			type = "putBack";
 			fgaLogType = "fgaPutBack";
 			probMissAndFoul = 0.37;
-			probMake = p.compositeRating.shootingAtRim * 0.41 + 0.54;
+			probMake =
+				p.compositeRating.shootingAtRim * ZONE_ACCURACY.atRim.mult +
+				ZONE_ACCURACY.atRim.base +
+				p.accuracies.atRim;
 			probAndOne = 0.25;
 
 			if (lateGamePutBack) {
@@ -2199,14 +2244,16 @@ class GameSim extends GameSimBase {
 					(1 +
 						COACHING.THREE_PT_TENDENCY *
 							this.team[this.o].coaching.threePointTendency) *
-					(1 +
-						COACHING.PAINT_PUSH_3S * this.team[this.d].coaching.paintDefense)
+					(1 + COACHING.PAINT_PUSH_3S * this.team[this.d].coaching.paintDefense)
 		) {
 			// Three pointer
 			type = "threePointer";
 			fgaLogType = g.get("threePointers") ? "fgaTp" : "fgaTpFake";
 			probMissAndFoul = 0.02;
-			probMake = shootingThreePointerScaled * 0.3 + 0.36;
+			probMake =
+				shootingThreePointerScaled * ZONE_ACCURACY.threePointer.mult +
+				ZONE_ACCURACY.threePointer.base +
+				p.accuracies.three;
 			probAndOne = 0.01;
 
 			// Better shooting in the ASG, why not?
@@ -2232,16 +2279,22 @@ class GameSim extends GameSimBase {
 			);
 			const shareMid = Math.max(0.05, 1 - shareRim - sharePost);
 
+			// Stat-derived mixes are used as-is (rating pinned to the neutral 0.5);
+			// skill-generated mixes get the mild skill skew on top.
+			const mixRating = (rating: number) =>
+				p.tendencies.absolute ? 0.5 : rating;
 			const skillW = (rating: number) =>
 				Math.max(0.1, MIX_SKILL_BASE + MIX_SKILL_W * rating);
 
 			const wRim =
 				RIM_MIX_CAL *
 				shareRim *
-				skillW(p.compositeRating.shootingAtRim + synergyTerm);
+				skillW(mixRating(p.compositeRating.shootingAtRim) + synergyTerm);
 			const wPost =
-				sharePost * skillW(p.compositeRating.shootingLowPost + synergyTerm);
-			const wMid = shareMid * skillW(p.compositeRating.shootingMidRange);
+				sharePost *
+				skillW(mixRating(p.compositeRating.shootingLowPost) + synergyTerm);
+			const wMid =
+				shareMid * skillW(mixRating(p.compositeRating.shootingMidRange));
 
 			const r = Math.random() * (wRim + wPost + wMid);
 			if (r < wMid) {
@@ -2249,21 +2302,30 @@ class GameSim extends GameSimBase {
 				type = "midRange";
 				fgaLogType = "fgaMidRange";
 				probMissAndFoul = 0.07;
-				probMake = p.compositeRating.shootingMidRange * 0.32 + 0.42;
+				probMake =
+					p.compositeRating.shootingMidRange * ZONE_ACCURACY.midRange.mult +
+					ZONE_ACCURACY.midRange.base +
+					p.accuracies.midRange;
 				probAndOne = 0.05;
 			} else if (r < wMid + wRim) {
 				// Dunk, fast break or half court
 				type = "atRim";
 				fgaLogType = "fgaAtRim";
 				probMissAndFoul = 0.37;
-				probMake = p.compositeRating.shootingAtRim * 0.41 + 0.54;
+				probMake =
+					p.compositeRating.shootingAtRim * ZONE_ACCURACY.atRim.mult +
+					ZONE_ACCURACY.atRim.base +
+					p.accuracies.atRim;
 				probAndOne = 0.25;
 			} else {
 				// Post up
 				fgaLogType = "fgaLowPost";
 				type = "lowPost";
 				probMissAndFoul = 0.33;
-				probMake = p.compositeRating.shootingLowPost * 0.32 + 0.34;
+				probMake =
+					p.compositeRating.shootingLowPost * ZONE_ACCURACY.lowPost.mult +
+					ZONE_ACCURACY.lowPost.base +
+					p.accuracies.lowPost;
 				probAndOne = 0.15;
 			}
 			// Better shooting in the ASG, why not?
@@ -2281,8 +2343,7 @@ class GameSim extends GameSimBase {
 			blocked = false;
 
 			let foulFactor =
-				0.65 *
-				(p.compositeRating.drawingFouls / 0.5) ** 2 *
+				this.foulDrawFactor(p) *
 				g.get("foulRateFactor") *
 				this.defensiveAggressionFactor(COACHING.AGGRESSION_FOUL);
 
@@ -2341,6 +2402,9 @@ class GameSim extends GameSimBase {
 			blocked,
 			desperation: forceThreePointer || rushed,
 			fgaLogType,
+			// Stat-protected end-of-period heave (only meaningful if the shot
+			// actually went up as a three).
+			heave: heave && type === "threePointer",
 			probAndOne,
 			probMake,
 			probMissAndFoul,
@@ -2436,6 +2500,7 @@ class GameSim extends GameSimBase {
 			blocked,
 			desperation,
 			fgaLogType,
+			heave,
 			probAndOne,
 			probMake,
 			probMissAndFoul,
@@ -2477,7 +2542,7 @@ class GameSim extends GameSimBase {
 			});
 		}
 		if (blocked) {
-			return this.doBlk(p, type); // orb or drb
+			return this.doBlk(p, type, heave); // orb or drb
 		}
 
 		const advanceClock = () => {
@@ -2533,28 +2598,32 @@ class GameSim extends GameSimBase {
 			return this.doFt(p, 2);
 		}
 
-		// Miss
-		p.hotHand = helpers.bound(p.hotHand - 1, -HOT_HAND_CAP, HOT_HAND_CAP);
+		// Miss. A missed end-of-period heave is charged to the team, not the
+		// shooter (NBA heave rule) - and it doesn't cool his hot hand either.
+		const missP = heave ? undefined : p;
+		if (!heave) {
+			p.hotHand = helpers.bound(p.hotHand - 1, -HOT_HAND_CAP, HOT_HAND_CAP);
+		}
 		advanceClock();
-		this.recordStat(this.o, p, "fga");
+		this.recordStat(this.o, missP, "fga");
 		let fgMissLogType: FgMissType | undefined;
 		if (type === "tipIn") {
-			this.recordStat(this.o, p, "fgaAtRim");
+			this.recordStat(this.o, missP, "fgaAtRim");
 			fgMissLogType = "missTipIn";
 		} else if (type === "putBack") {
-			this.recordStat(this.o, p, "fgaAtRim");
+			this.recordStat(this.o, missP, "fgaAtRim");
 			fgMissLogType = "missPutBack";
 		} else if (type === "atRim") {
-			this.recordStat(this.o, p, "fgaAtRim");
+			this.recordStat(this.o, missP, "fgaAtRim");
 			fgMissLogType = "missAtRim";
 		} else if (type === "lowPost") {
-			this.recordStat(this.o, p, "fgaLowPost");
+			this.recordStat(this.o, missP, "fgaLowPost");
 			fgMissLogType = "missLowPost";
 		} else if (type === "midRange") {
-			this.recordStat(this.o, p, "fgaMidRange");
+			this.recordStat(this.o, missP, "fgaMidRange");
 			fgMissLogType = "missMidRange";
 		} else if (type === "threePointer") {
-			this.recordStat(this.o, p, "tpa");
+			this.recordStat(this.o, missP, "tpa");
 			fgMissLogType = "missTp";
 		} else {
 			throw new Error(`Should never happen ${fgMissLogType}`);
@@ -2590,18 +2659,20 @@ class GameSim extends GameSimBase {
 	 * @param {number} shooter Integer from 0 to 4 representing the index of this.playersOnCourt[this.o] for the shooting player.
 	 * @return {string} Output of this.doReb.
 	 */
-	doBlk(p: PlayerGameSim, type: ShotType) {
-		this.recordStat(this.o, p, "ba");
-		this.recordStat(this.o, p, "fga");
+	doBlk(p: PlayerGameSim, type: ShotType, heave: boolean = false) {
+		// A blocked heave is still stat-protected for the shooter (team FGA only).
+		const shotP = heave ? undefined : p;
+		this.recordStat(this.o, shotP, "ba");
+		this.recordStat(this.o, shotP, "fga");
 
 		if (type === "atRim" || type === "tipIn" || type === "putBack") {
-			this.recordStat(this.o, p, "fgaAtRim");
+			this.recordStat(this.o, shotP, "fgaAtRim");
 		} else if (type === "lowPost") {
-			this.recordStat(this.o, p, "fgaLowPost");
+			this.recordStat(this.o, shotP, "fgaLowPost");
 		} else if (type === "midRange") {
-			this.recordStat(this.o, p, "fgaMidRange");
+			this.recordStat(this.o, shotP, "fgaMidRange");
 		} else if (type === "threePointer") {
-			this.recordStat(this.o, p, "tpa");
+			this.recordStat(this.o, shotP, "tpa");
 		}
 
 		const p2 = this.pickPlayer("blocking", this.d, 10);
@@ -2994,10 +3065,46 @@ class GameSim extends GameSimBase {
 		}
 	}
 
+	// Per-shot foul-draw multiplier. Real players (ftrDraw = career FTA/FGA)
+	// get the factor that reproduces their real FT rate given their shot mix -
+	// rim attempts draw far more fouls than jumpers, and the mix already
+	// varies per player - while fictional players fall back to the
+	// drawingFouls composite (0.85 calibrates that fallback so league FT rate
+	// lands near the historical ~0.2-0.3 band).
+	foulDrawFactor(p: PlayerGameSim) {
+		if (p.ftrDraw === undefined) {
+			return 0.85 * (p.compositeRating.drawingFouls / 0.5) ** 2;
+		}
+		const s3 = shareFromTendency(p.tendencies.three, TENDENCY_SHARE.three);
+		const rim2 = shareFromTendency(p.tendencies.atRim, TENDENCY_SHARE.atRim);
+		const post2 = helpers.bound(
+			shareFromTendency(p.tendencies.post, TENDENCY_SHARE.post),
+			0.02,
+			0.35,
+		);
+		const mid2 = Math.max(0.05, 1 - rim2 - post2);
+		const propensity =
+			s3 * FT_PROPENSITY.three +
+			(1 - s3) *
+				(rim2 * FT_PROPENSITY.atRim +
+					post2 * FT_PROPENSITY.lowPost +
+					mid2 * FT_PROPENSITY.midRange);
+		return helpers.bound(
+			(FTR_DRAW_CAL * p.ftrDraw) / Math.max(propensity, 0.05),
+			0.15,
+			2.6,
+		);
+	}
+
 	doFt(p: PlayerGameSim, amount: number) {
-		// 95% max, a 75 FT rating gets you 90%, and a 25 FT rating gets you 60%
+		// 95% max, a 75 FT rating gets you 90%, and a 25 FT rating gets you 60%.
+		// Real players get their career-FT% correction on top of the model.
 		const ftp = helpers.bound(
-			g.get("ftAccuracyFactor") * p.compositeRating.shootingFT * 0.6 + 0.45,
+			g.get("ftAccuracyFactor") *
+				p.compositeRating.shootingFT *
+				FT_ACCURACY.mult +
+				FT_ACCURACY.base +
+				p.accuracies.ft,
 			0,
 			0.95,
 		);

@@ -3,6 +3,7 @@ import processPlayerStatsBaseball from "./processPlayerStats.baseball.ts";
 import processPlayerStatsBasketball from "./processPlayerStats.basketball.ts";
 import processPlayerStatsFootball from "./processPlayerStats.football.ts";
 import processPlayerStatsHockey from "./processPlayerStats.hockey.ts";
+import processPlayerStatsSoccer from "./processPlayerStats.soccer.ts";
 import type { PlayerStats, PlayerStatType } from "./types.ts";
 import { defaultGameAttributes } from "./defaultGameAttributes.ts";
 
@@ -20,5 +21,6 @@ export const processPlayerStats = (
 			return defaultGameAttributes.fantasyPoints;
 		}),
 		hockey: processPlayerStatsHockey(ps, stats, statType, bornYear),
+		soccer: processPlayerStatsSoccer(ps, stats, statType, bornYear),
 	});
 };

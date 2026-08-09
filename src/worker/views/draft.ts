@@ -119,6 +119,7 @@ const updateDraft = async (inputs: unknown, updateEvents: UpdateEvents) => {
 				basketball: ["per", "ewa"],
 				football: ["gp", "keyStats", "av"],
 				hockey: ["gp", "keyStats", "ops", "dps", "ps"],
+				soccer: ["gp", "keyStats", "g", "a", "matchRating"],
 			});
 
 			// After fantasy draft, tids are reset, so actually the remaining undrafted players are free agents
@@ -138,6 +139,7 @@ const updateDraft = async (inputs: unknown, updateEvents: UpdateEvents) => {
 				basketball: ["per", "ewa"],
 				football: ["gp", "keyStats", "av"],
 				hockey: ["gp", "keyStats", "ops", "dps", "ps"],
+				soccer: ["gp", "keyStats", "g", "a", "matchRating"],
 			});
 			undrafted = (
 				await idb.cache.players.indexGetAll("playersByTid", [0, Infinity])

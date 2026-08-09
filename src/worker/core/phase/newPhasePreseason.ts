@@ -21,7 +21,17 @@ import type {
 	TeamSeason,
 } from "../../../common/types.ts";
 import { playerCoachFit } from "../coach/style.ts";
-import { driftUsageTendency } from "../player/genTendencies.basketball.ts";
+import {
+	driftShotTendencies,
+	driftUsageTendency,
+} from "../player/genTendencies.basketball.ts";
+import {
+	deriveTendenciesPerSeason,
+	lerpTendenciesToward,
+} from "../realRosters/deriveTendencies.basketball.ts";
+import loadStatsBasketball, {
+	type BasketballStats,
+} from "../realRosters/loadStats.basketball.ts";
 import { fitAdjustedCoachingLevel } from "../../../common/coachingConstants.ts";
 import { groupByUnique, maxBy } from "../../../common/utils.ts";
 import { applyRealTeamInfo } from "../../../common/applyRealTeamInfo.ts";
@@ -252,6 +262,31 @@ const newPhasePreseason = async (
 	// drive player development from the coach's development rating (basketball).
 	// Other sports keep using the team's coaching budget level.
 	const coachingLevels: Record<number, number> = {};
+	// Lazily loaded real career stats, for Tendency Determinism (only needed
+	// when a real player is still within his real-data span). Failure-tolerant:
+	// leagues without access to the stats file just fall back to skill drift.
+	let tendencyStatsBySlug:
+		Map<string, BasketballStats["stats"]> | null | undefined;
+	const getTendencyStatsBySlug = async () => {
+		if (tendencyStatsBySlug === undefined) {
+			try {
+				const { stats } = await loadStatsBasketball();
+				tendencyStatsBySlug = new Map();
+				for (const row of stats) {
+					const existing = tendencyStatsBySlug.get(row.slug);
+					if (existing) {
+						existing.push(row);
+					} else {
+						tendencyStatsBySlug.set(row.slug, [row]);
+					}
+				}
+			} catch {
+				tendencyStatsBySlug = null;
+			}
+		}
+		return tendencyStatsBySlug;
+	};
+
 	// Each team's effective style dials, for the per-player system-fit
 	// development adjustment. Read fresh after updateTeamCoaching runs.
 	const teamCoachingByTid = new Map<number, TeamCoaching>();
@@ -401,6 +436,10 @@ const newPhasePreseason = async (
 		if (isSport("baseball") && p.pFatigue !== undefined && p.pFatigue > 0) {
 			p.pFatigue = 0;
 		}
+		if (isSport("soccer")) {
+			p.soccerFitness = 1;
+			p.soccerLastMatchDay = undefined;
+		}
 
 		if (repeatSeason) {
 			if (repeatSeason.type === "playersAndRosters") {
@@ -457,15 +496,65 @@ const newPhasePreseason = async (
 			if (isSport("basketball")) {
 				player.updatePopularity(p, popularityContext);
 
-				// Usage identity drifts toward what current skills imply, paced by
-				// the coach's tactics - breakout players grow into featured roles,
-				// aging stars cede possessions.
+				// Behavioral identity for the new season. Two forces:
+				// - Tendency Determinism: while the league is still within a real
+				//   player's real-data span, pull his tendencies toward his real
+				//   career arc for this season (100% = re-track it exactly).
+				// - Skill drift: toward what his CURRENT (sim-developed) skills
+				//   imply, paced by the coach's tactics. Full strength for
+				//   fictional players and beyond the real-data span; scaled by
+				//   (1 - determinism) within it - so at 0% determinism, real
+				//   players match real life at creation and then immediately
+				//   develop like fictional players.
 				const ratings = p.ratings.at(-1);
 				if (ratings) {
-					driftUsageTendency(
-						ratings as any,
-						coachTacticsByTid.get(p.tid) ?? 50,
-					);
+					const coachTactics = coachTacticsByTid.get(p.tid) ?? 50;
+					const dataEnd = (ratings as any).tendencyDataEnd;
+					// Walk the player's own career arc, not the league calendar:
+					// tendencyVintage is the real season his current tendencies
+					// represent (equal to the calendar in a normal real league, but a
+					// cross-era 1996 vintage or a random debut ages through HIS
+					// career years). Falls back to the calendar for rows from before
+					// vintage tracking existed.
+					const vintage = (ratings as any).tendencyVintage;
+					const virtualSeason = vintage !== undefined ? vintage + 1 : newSeason;
+					const withinRealSpan =
+						typeof p.srID === "string" &&
+						dataEnd !== undefined &&
+						virtualSeason <= dataEnd;
+					let driftStrength = 1;
+					let lerped = false;
+					if (withinRealSpan) {
+						const determinism = helpers.bound(
+							g.get("realTendencyDeterminism") ?? 1,
+							0,
+							1,
+						);
+						driftStrength = 1 - determinism;
+						if (determinism > 0) {
+							const statsBySlug = await getTendencyStatsBySlug();
+							const careerStats = statsBySlug?.get(p.srID!) ?? [];
+							if (careerStats.length > 0) {
+								const target = deriveTendenciesPerSeason(
+									careerStats,
+									[{ ...(ratings as any), season: virtualSeason }],
+									helpers.bound(g.get("realTendenciesSeasonality") ?? 1, 0, 1),
+									0,
+								).get(virtualSeason);
+								if (target) {
+									lerpTendenciesToward(ratings, target, determinism);
+									lerped = true;
+								}
+							}
+						}
+					}
+					// Advance the vintage even when not lerping (the lerp target
+					// already carries it), so the arc position keeps tracking.
+					if (!lerped && vintage !== undefined) {
+						(ratings as any).tendencyVintage = virtualSeason;
+					}
+					driftUsageTendency(ratings as any, coachTactics, driftStrength);
+					driftShotTendencies(ratings as any, coachTactics, driftStrength);
 				}
 			}
 		}

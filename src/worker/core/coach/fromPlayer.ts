@@ -5,6 +5,7 @@ import { last } from "../../../common/utils.ts";
 import ovr from "./ovr.ts";
 import genContract from "./genContract.ts";
 import type { CoachWithoutKey, Player } from "../../../common/types.ts";
+import { generateFace } from "../../util/face.ts";
 
 const clampRating = (x: number) => helpers.bound(Math.round(x), 0, 100);
 
@@ -53,7 +54,7 @@ const fromPlayer = (p: Player): CoachWithoutKey => {
 		tid: PLAYER.FREE_AGENT,
 		firstName: p.firstName,
 		lastName: p.lastName,
-		face: p.face,
+		face: p.face ?? generateFace(),
 		born: { ...p.born },
 		contract: genContract(ratings.ovr, { randomizeExp: false }),
 		ratings,

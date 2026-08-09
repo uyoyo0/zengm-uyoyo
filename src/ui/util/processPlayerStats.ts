@@ -3,6 +3,7 @@ import processPlayerStatsBaseball from "../../common/processPlayerStats.baseball
 import processPlayerStatsBasketball from "../../common/processPlayerStats.basketball.ts";
 import processPlayerStatsFootball from "../../common/processPlayerStats.football.ts";
 import processPlayerStatsHockey from "../../common/processPlayerStats.hockey.ts";
+import processPlayerStatsSoccer from "../../common/processPlayerStats.soccer.ts";
 import type { PlayerStats, PlayerStatType } from "../../common/types.ts";
 import { local } from "./local.ts";
 
@@ -19,5 +20,6 @@ export const processPlayerStats = (
 			return local.getState().fantasyPoints;
 		}),
 		hockey: processPlayerStatsHockey(ps, stats, statType, bornYear),
+		soccer: processPlayerStatsSoccer(ps, stats, statType, bornYear),
 	});
 };

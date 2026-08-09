@@ -17,6 +17,7 @@ import {
 } from "../../common/constants.ts";
 import { env } from "./env.ts";
 import { initUILocalGames } from "./initUILocalGames.ts";
+import { getLeagueForCurrentSport } from "../db/leagueSport.ts";
 
 let heartbeatIntervalID: number;
 
@@ -24,7 +25,7 @@ let heartbeatIntervalID: number;
 
 const getLeague = async (lid: number) => {
 	// Make sure this league exists before proceeding
-	const l = await idb.meta.get("leagues", lid);
+	const l = await getLeagueForCurrentSport(lid);
 
 	if (l === undefined) {
 		throw new Error(ERROR_MESSSAGE_LEAGUE_NOT_FOUND);

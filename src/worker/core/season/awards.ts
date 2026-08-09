@@ -157,6 +157,35 @@ export const awardStats = bySport({
 		"tid",
 		"jerseyNumber",
 	],
+	soccer: [
+		"keyStats",
+		"gp",
+		"gs",
+		"min",
+		"g",
+		"a",
+		"xg",
+		"xa",
+		"tkl",
+		"int",
+		"clr",
+		"blk",
+		"drbCmp",
+		"prgP",
+		"prgC",
+		"recov",
+		"prsWon",
+		"sv",
+		"ga",
+		"psxg",
+		"cs",
+		"svPct",
+		"matchRating",
+		"season",
+		"abbrev",
+		"tid",
+		"jerseyNumber",
+	],
 });
 
 const getProcessedPlayers = async (
@@ -399,6 +428,7 @@ const leagueLeaders = async (
 		basketball: "perGame",
 		football: "totals",
 		hockey: "totals",
+		soccer: "totals",
 	});
 	const season = g.get("season");
 
@@ -639,6 +669,7 @@ const addSimpleAndTeamAwardsToAwardsByPlayer = (
 		basketball: ["allRookie", "allLeague", "allDefensive", "sfmvp"] as const,
 		football: ["allRookie", "allLeague"] as const,
 		hockey: ["allRookie", "allLeague"] as const,
+		soccer: ["allRookie", "allLeague"] as const,
 	});
 	for (const key of awardsTeams) {
 		if (!awards[key]) {

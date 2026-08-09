@@ -3,6 +3,7 @@ import processPlayerStatsBaseball from "../../common/processPlayerStats.baseball
 import processPlayerStatsBasketball from "../../common/processPlayerStats.basketball.ts";
 import processPlayerStatsFootball from "../../common/processPlayerStats.football.ts";
 import processPlayerStatsHockey from "../../common/processPlayerStats.hockey.ts";
+import processPlayerStatsSoccer from "../../common/processPlayerStats.soccer.ts";
 import type { StatSumsExtra } from "../../common/processPlayerStats.basketball.ts";
 import type { PlayerStats, PlayerStatType } from "../../common/types.ts";
 import g from "./g.ts";
@@ -29,5 +30,6 @@ export const processPlayerStats = (
 			g.get("fantasyPoints"),
 		),
 		hockey: processPlayerStatsHockey(ps, stats, statType, bornYear),
+		soccer: processPlayerStatsSoccer(ps, stats, statType, bornYear),
 	});
 };

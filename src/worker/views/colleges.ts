@@ -126,6 +126,7 @@ export const genView = (
 				],
 				football: ["keyStats", "av"],
 				hockey: ["keyStats", "ops", "dps", "ps"],
+				soccer: ["keyStats", "g", "a", "matchRating"],
 			});
 
 			const infosTemp: { [key: string]: InfoTemp } = {};

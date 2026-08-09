@@ -96,7 +96,9 @@ export const babelPluginSportFunctionsFactory =
 							}
 
 							const value =
-								propertiesByKey[sport]?.value ?? propertiesByKey.default?.value;
+								propertiesByKey[sport]?.value ??
+								(sport === "soccer" ? propertiesByKey.hockey?.value : undefined) ??
+								propertiesByKey.default?.value;
 
 							if (value === undefined) {
 								throw new Error(`Missing sport (${sport}) and default`);

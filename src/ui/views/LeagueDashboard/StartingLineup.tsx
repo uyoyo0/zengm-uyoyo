@@ -92,7 +92,9 @@ const StartingLineup = ({
 			</ResponsiveTableWrapper>
 			<div />
 			{DEPTH_CHART_NAME ? (
-				<a href={helpers.leagueUrl(["depth"])}>» {DEPTH_CHART_NAME}</a>
+				<a href={helpers.leagueUrl([isSport("soccer") ? "tactics" : "depth"])}>
+					» {DEPTH_CHART_NAME}
+				</a>
 			) : (
 				<a href={helpers.leagueUrl(["roster"])}>» Full Roster</a>
 			)}

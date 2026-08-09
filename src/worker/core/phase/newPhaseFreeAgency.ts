@@ -4,6 +4,7 @@ import type { PhaseReturn } from "../../../common/types.ts";
 import { idb } from "../../db/index.ts";
 import { PLAYER } from "../../../common/constants.ts";
 import { getNumPlayersTradedAwayNormalizedAll } from "../player/getNumPlayersTradedAwayNormalized.ts";
+import { isSport } from "../../../common/sportFunctions.ts";
 
 const newPhaseFreeAgency = async (): Promise<PhaseReturn> => {
 	// In case some weird situation results in games still in the schedule, clear them
@@ -32,8 +33,10 @@ const newPhaseFreeAgency = async (): Promise<PhaseReturn> => {
 
 	return {
 		redirect: {
-			url: helpers.leagueUrl(["free_agents"]),
-			text: "View free agents",
+			url: helpers.leagueUrl([
+				isSport("soccer") ? "transfer_market" : "free_agents",
+			]),
+			text: isSport("soccer") ? "Open Transfer Hub" : "View free agents",
 		},
 		updateEvents: ["playerMovement"],
 	};

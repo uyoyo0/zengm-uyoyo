@@ -1,4 +1,10 @@
-export const SPORTS = ["basketball", "football", "baseball", "hockey"] as const;
+export const SPORTS = [
+	"basketball",
+	"football",
+	"baseball",
+	"hockey",
+	"soccer",
+] as const;
 export type Sport = (typeof SPORTS)[number];
 
 export const getSport = (): Sport => {

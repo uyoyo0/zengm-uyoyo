@@ -35,6 +35,7 @@ const generate = (
 		lastName: "LastName",
 		race: "asian",
 	},
+	skipFace: boolean = false,
 ): PlayerWithoutKey => {
 	const { heightInInches, ratings } = genRatings(
 		newLeague ? g.get("startingSeason") : draftYear,
@@ -74,7 +75,9 @@ const generate = (
 			ovr: 0,
 			skills: [],
 		},
-		face: generateFace({ race }),
+		// Large soccer leagues generate several thousand players at once. Their
+		// faces can be filled in lazily when a player page is first opened.
+		face: skipFace ? undefined : generateFace({ race }),
 		firstName,
 		gamesUntilTradable: 0,
 		hgt: actualHeightInInches,

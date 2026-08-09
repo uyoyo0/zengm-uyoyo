@@ -2,6 +2,7 @@ import developSeasonBaseball from "./developSeason.baseball.ts";
 import developSeasonBasketball from "./developSeason.basketball.ts";
 import developSeasonFootball from "./developSeason.football.ts";
 import developSeasonHockey from "./developSeason.hockey.ts";
+import developSeasonSoccer from "./developSeason.soccer.ts";
 import type { MinimalPlayerRatings } from "../../../common/types.ts";
 import { g, helpers } from "../../util/index.ts";
 import { RATINGS } from "../../../common/constants.ts";
@@ -25,6 +26,7 @@ const developSeason = async (
 		basketball: developSeasonBasketball(ratings as any, age, coachingLevel),
 		football: developSeasonFootball(ratings as any, age, coachingLevel),
 		hockey: developSeasonHockey(ratings as any, age, coachingLevel),
+		soccer: developSeasonSoccer(ratings as any, age, coachingLevel),
 	});
 
 	if (!isSport("basketball") || !Object.hasOwn(g, "realPlayerDeterminism")) {

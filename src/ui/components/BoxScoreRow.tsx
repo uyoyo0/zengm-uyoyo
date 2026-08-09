@@ -18,5 +18,6 @@ export const BoxScoreRow = (props: {
 		basketball: BoxScoreRowBasketball(props),
 		football: BoxScoreRowFootball(props as any),
 		hockey: BoxScoreRowFootball(props as any),
+		soccer: BoxScoreRowFootball(props as any),
 	});
 };

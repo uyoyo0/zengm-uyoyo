@@ -63,6 +63,7 @@ class PlayerRow extends Component<PlayerRowProps> {
 				nextProps.p.inPenaltyBox ||
 				nextProps.forceUpdate
 			),
+			soccer: true,
 		});
 	}
 
@@ -81,6 +82,9 @@ class PlayerRow extends Component<PlayerRowProps> {
 			hockey: clsx({
 				"table-warning": p.inGame,
 				"table-danger": p.inPenaltyBox,
+			}),
+			soccer: clsx({
+				"table-warning": p.inGame,
 			}),
 		});
 
@@ -115,6 +119,7 @@ const DEFAULT_SPORT_STATE = bySport<any>({
 	basketball: undefined,
 	football: DEFAULT_SPORT_STATE_FOOTBALL,
 	hockey: undefined,
+	soccer: undefined,
 });
 
 type PlayByPlayEntryInfo = {
@@ -159,6 +164,7 @@ const PlayByPlayEntry = memo(
 									? "It's good!"
 									: `${entry.scoreType ?? "???"}!`,
 								hockey: "Goal!",
+								soccer: "Goal!",
 							})}
 						</span>{" "}
 						{entry.score}
@@ -405,6 +411,7 @@ export const LiveGame = (props: View<"liveGame">) => {
 						basketball: true,
 						football: false,
 						hockey: true,
+						soccer: true,
 					})
 				) {
 					if (shootout && t !== undefined) {
@@ -898,6 +905,7 @@ export const LiveGame = (props: View<"liveGame">) => {
 				basketball: false,
 				football: true,
 				hockey: false,
+				soccer: false,
 			}) &&
 			!boxScore.current.shootout
 		) {
@@ -916,6 +924,7 @@ export const LiveGame = (props: View<"liveGame">) => {
 				basketball: false,
 				football: true,
 				hockey: true,
+				soccer: true,
 			}) &&
 			!boxScore.current.shootout
 		) {

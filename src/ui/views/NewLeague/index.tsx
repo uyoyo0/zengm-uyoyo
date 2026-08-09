@@ -848,6 +848,7 @@ const NewLeague = (props: View<"newLeague">) => {
 					realDraftRatings: settings.realDraftRatings,
 					realStats: settings.realStats,
 					realTendencies: settings.realTendencies,
+					realTendenciesSeasonality: settings.realTendenciesSeasonality,
 					includePlayers: state.keptKeys.includes("players"),
 				};
 			} else if (state.customize === "legends") {

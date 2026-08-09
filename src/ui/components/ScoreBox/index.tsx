@@ -305,7 +305,9 @@ export const ScoreBox = memo(
 							let teamName;
 							let rosterURL;
 							if (allStarGame) {
-								imgURL = `https://zengm.com/files/logo-${process.env.SPORT}.svg`;
+								imgURL = isSport("soccer")
+									? "/ico/icon.svg"
+									: `https://zengm.com/files/logo-${process.env.SPORT}.svg`;
 								teamName = small
 									? `AS${i === 0 ? 2 : 1}`
 									: `All-Stars ${i === 0 ? 2 : 1}`;

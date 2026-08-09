@@ -3,6 +3,7 @@ import BoxScoreBaseball from "./BoxScore.baseball.tsx";
 import BoxScoreBasketball from "./BoxScore.basketball.tsx";
 import BoxScoreFootball from "./BoxScore.football.tsx";
 import BoxScoreHockey from "./BoxScore.hockey.tsx";
+import BoxScoreSoccer from "./BoxScore.soccer.tsx";
 
 export const BoxScore = (props: {
 	boxScore: any;
@@ -15,5 +16,6 @@ export const BoxScore = (props: {
 		basketball: BoxScoreBasketball(props),
 		football: BoxScoreFootball(props as any),
 		hockey: BoxScoreHockey(props as any),
+		soccer: BoxScoreSoccer(props as any),
 	});
 };

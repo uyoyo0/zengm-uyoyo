@@ -79,6 +79,8 @@ const gameAttributesKeysSportSpecific = {
 		"orbFactor",
 		"assistFactor",
 		"realPlayerDeterminism",
+		"realTendenciesSeasonality",
+		"realTendencyDeterminism",
 		"rpdPot",
 		"foulRateFactor",
 		"foulsNeededToFoulOut",
@@ -136,6 +138,15 @@ const gameAttributesKeysSportSpecific = {
 		"takeawayFactor",
 		"blockFactor",
 		"deflectionFactor",
+		"saveFactor",
+		"assistFactor",
+		"pace",
+	]),
+	soccer: new Set<GameAttributeKey>([
+		"foulRateFactor",
+		"quarterLength",
+		"overtimeLength",
+		"overtimeLengthPlayoffs",
 		"saveFactor",
 		"assistFactor",
 		"pace",
@@ -257,6 +268,13 @@ export const defaultGameAttributes: GameAttributesLeagueWithHistory = {
 	repeatSeason: undefined,
 	equalizeRegions: false,
 	realPlayerDeterminism: 0,
+	// How strongly real players' derived tendencies track each specific season
+	// of their career (see deriveTendenciesPerSeason).
+	realTendenciesSeasonality: 1,
+	// Each preseason, how strongly a real player's tendencies re-track his real
+	// career arc while the league is within his real-data span (0 = they only
+	// match at creation, then drift with his sim skills immediately).
+	realTendencyDeterminism: 1,
 	spectator: false,
 	elam: false,
 	elamASG: false,
@@ -483,6 +501,51 @@ export const hockeyOverrides: Partial<GameAttributesLeagueWithHistory> =
 			}
 		: {};
 
+export const soccerOverrides: Partial<GameAttributesLeagueWithHistory> =
+	process.env.NODE_ENV === "test" || isSport("soccer")
+		? {
+				numGames: wrapFromStart(38),
+				numGamesDiv: 38,
+				numGamesConf: 0,
+				numGamesPlayoffSeries: wrapFromStart([]),
+				numPlayoffByes: wrapFromStart(0),
+				quarterLength: 45,
+				overtimeLength: 15,
+				overtimeLengthPlayoffs: 15,
+				numPeriods: 2,
+				salaryCapType: "none",
+				salaryCap: 250000,
+				minPayroll: 0,
+				luxuryPayroll: 300000,
+				minContract: 50,
+				maxContract: 30000,
+				minRosterSize: 17,
+				maxRosterSize: 30,
+				injuryRate: 0.35 / 30 / 90,
+				draftType: "freeAgents",
+				numDraftRounds: 0,
+				draftAges: [16, 18],
+				allStarGame: -1,
+				allStarNum: 22,
+				numPlayersOnCourt: 11,
+				otl: wrapFromStart(false),
+				pointsFormula: wrapFromStart("3*W+T"),
+				playoffsByConf: false,
+				playoffsNumTeamsDiv: wrapFromStart(0),
+				playIn: false,
+				maxOvertimes: wrapFromStart(0),
+				shootoutRounds: wrapFromStart(0),
+				maxOvertimesPlayoffs: 1,
+				shootoutRoundsPlayoffs: 5,
+				currencyFormat: ["€", ".", ""],
+				tiebreakers: wrapFromStart([
+					"headToHeadRecord",
+					"marginOfVictory",
+					"coinFlip",
+				]),
+			}
+		: {};
+
 // Extra condition for NODE_ENV is because we use this export only in tests, so we don't want it in the basketball bundle!
 export const baseballOverrides: Partial<GameAttributesLeagueWithHistory> =
 	process.env.NODE_ENV === "test" || isSport("baseball")
@@ -526,4 +589,6 @@ if (isSport("football")) {
 	Object.assign(defaultGameAttributes, hockeyOverrides);
 } else if (isSport("baseball")) {
 	Object.assign(defaultGameAttributes, baseballOverrides);
+} else if (isSport("soccer")) {
+	Object.assign(defaultGameAttributes, soccerOverrides);
 }

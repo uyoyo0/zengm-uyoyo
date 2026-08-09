@@ -7,6 +7,7 @@ import {
 	VIDEO_AD_PADDING,
 } from "../../../common/constants.ts";
 import { useLocal } from "../../util/local.ts";
+import { isSport } from "../../../common/sportFunctions.ts";
 
 const footerLinks = [
 	{
@@ -88,7 +89,11 @@ export const Footer = memo(() => {
 				>
 					<img
 						alt=""
-						src={`https://zengm.com/files/logo-${process.env.SPORT}.svg`}
+						src={
+							isSport("soccer")
+								? "/ico/icon.svg"
+								: `https://zengm.com/files/logo-${process.env.SPORT}.svg`
+						}
 						style={{
 							maxHeight: "100%",
 							maxWidth: "100%",

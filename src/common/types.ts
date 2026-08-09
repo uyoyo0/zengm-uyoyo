@@ -35,7 +35,7 @@ declare global {
 	const process: {
 		env: {
 			NODE_ENV: "development" | "production" | "test";
-			SPORT: "basketball" | "football" | "baseball" | "hockey";
+			SPORT: "basketball" | "football" | "baseball" | "hockey" | "soccer";
 		};
 	};
 }
@@ -57,10 +57,7 @@ export type ViewInput<T extends keyof typeof processInputs> = Exclude<
 >;
 
 export type AchievementWhen =
-	| "afterAwards"
-	| "afterFired"
-	| "afterPlayoffs"
-	| "afterRegularSeason";
+	"afterAwards" | "afterFired" | "afterPlayoffs" | "afterRegularSeason";
 
 export type Achievement = {
 	slug: string;
@@ -174,6 +171,100 @@ export type CompositeWeights<RatingKey = string> = {
 
 export type Conditions = {
 	hostID?: number;
+};
+
+export type SoccerAssociation = {
+	aid: string;
+	country: "England" | "Spain" | "Italy";
+	name: string;
+	leagueCompIds: [string, string, string];
+	domesticCupCompId: string;
+};
+
+export type SoccerCompetition = {
+	compId: string;
+	name: string;
+	shortName: string;
+	type: "league" | "domesticCup" | "continental" | "promotionPlayoff";
+	aid?: string;
+	tier?: 1 | 2 | 3;
+};
+
+export type SoccerCompetitionSeason = {
+	key: string;
+	season: number;
+	compId: string;
+	status: "scheduled" | "active" | "complete";
+	participantTids: number[];
+	groups?: number[][];
+	rounds?: {
+		name: string;
+		ties: {
+			tieId: string;
+			homeTid: number;
+			awayTid: number;
+			winnerTid?: number;
+		}[];
+	}[];
+	championTid?: number;
+};
+
+export type SoccerCompetitionTeamSeason = {
+	key: string;
+	season: number;
+	compId: string;
+	tid: number;
+	gp: number;
+	won: number;
+	drawn: number;
+	lost: number;
+	gf: number;
+	ga: number;
+	pts: number;
+	position?: number;
+	stage?: string;
+	outcome?: "champion" | "promoted" | "relegated" | "eliminated";
+};
+
+export type SoccerFormation = "4-3-3" | "4-2-3-1" | "4-4-2" | "3-5-2" | "3-4-3";
+
+export type SoccerTactics = {
+	formation: SoccerFormation;
+	starting: number[];
+	bench: number[];
+	duties: Record<number, "defend" | "support" | "attack">;
+	mentality: -2 | -1 | 0 | 1 | 2;
+	tempo: -2 | -1 | 0 | 1 | 2;
+	pressing: -2 | -1 | 0 | 1 | 2;
+	defensiveLine: -2 | -1 | 0 | 1 | 2;
+	width: -2 | -1 | 0 | 1 | 2;
+	directness: -2 | -1 | 0 | 1 | 2;
+	transition: -2 | -1 | 0 | 1 | 2;
+	marking: -2 | -1 | 0 | 1 | 2;
+	substitutionTiming: -1 | 0 | 1;
+};
+
+export type SoccerTransferOffer = {
+	offerId?: number;
+	pid: number;
+	buyingTid: number;
+	sellingTid: number;
+	fee: number;
+	contractAmount?: number;
+	contractExp?: number;
+	marketValue?: number;
+	askingPrice?: number;
+	requestedContractAmount?: number;
+	status:
+		| "submitted"
+		| "countered"
+		| "clubAccepted"
+		| "playerAccepted"
+		| "rejected"
+		| "withdrawn"
+		| "completed";
+	createdDay: number;
+	expiresDay: number;
 };
 
 export type DraftLotteryResultArray<Completed = boolean> = {
@@ -374,6 +465,10 @@ type GameTeam = {
 export type Game = {
 	att: number;
 	clutchPlays?: string[];
+	compId?: string;
+	competitionStage?: string;
+	tieId?: string;
+	leg?: 1 | 2;
 	day?: number; // Only optional for legacy
 	finals?: boolean;
 	forceWin?: number; // If defined, it's the number of iterations that were used to force the win/tie
@@ -390,6 +485,7 @@ export type Game = {
 	numPeriods?: number; // Optional only for legacy, otherwise it's the number of periods in the game, defined at the start
 	numPlayersOnCourt?: number;
 	playoffs?: boolean;
+	requiresWinner?: boolean;
 	overtimes: number;
 	scoringSummary?: any;
 	season: number;
@@ -652,6 +748,8 @@ export type GameAttributesLeague = {
 	randomDebutsForever?: number;
 	realDraftRatings?: "draft" | "rookie";
 	realPlayerDeterminism: number;
+	realTendenciesSeasonality: number;
+	realTendencyDeterminism: number;
 	repeatSeason:
 		| undefined
 		| {
@@ -796,8 +894,7 @@ export type GameAttributesLeagueWithHistory = Omit<
 };
 
 export type GameAttributes =
-	| GameAttributesNonLeague
-	| GameAttributesLeagueWithHistory;
+	GameAttributesNonLeague | GameAttributesLeagueWithHistory;
 
 export type GameAttributeKey = keyof GameAttributesLeague;
 
@@ -808,6 +905,7 @@ export type GameAttribute<T extends GameAttributeKey> = {
 
 export type League = {
 	lid: number;
+	sport?: "baseball" | "basketball" | "football" | "hockey" | "soccer";
 	name: string;
 	tid: number;
 	phaseText: string;
@@ -1192,7 +1290,7 @@ export type PlayerWithoutKey<PlayerRatings = MinimalPlayerRatings> = {
 		skills: string[];
 		dpid?: number;
 	};
-	face: FaceConfig;
+	face?: FaceConfig;
 	firstName: string;
 	gamesUntilTradable: number;
 	hgt: number;
@@ -1245,7 +1343,7 @@ export type PlayerWithoutKey<PlayerRatings = MinimalPlayerRatings> = {
 				season: number;
 				phase: Phase;
 				tid: number;
-				type: "trade";
+				type: "trade" | "transfer";
 				fromTid: number;
 				eid?: number;
 		  }
@@ -1282,6 +1380,11 @@ export type PlayerWithoutKey<PlayerRatings = MinimalPlayerRatings> = {
 
 	// Only for baseball pitchers
 	pFatigue?: number;
+
+	// Soccer match fitness persists between fixtures. The day is used to apply
+	// recovery for the actual gap between appearances rather than per sim click.
+	soccerFitness?: number;
+	soccerLastMatchDay?: number;
 };
 
 export type Player<PlayerRatings = MinimalPlayerRatings> = {
@@ -1498,6 +1601,11 @@ export type ScheduleGameWithoutKey = {
 	forceWin?: number | "tie"; // either awayTid or homeTid, if defined
 	finals?: boolean; // Used for easily checking neutralSite "finals" setting
 	day: number; // In the playoffs the values are kind of weird
+	compId?: string;
+	competitionStage?: string;
+	tieId?: string;
+	leg?: 1 | 2;
+	requiresWinner?: boolean;
 };
 
 export type ScheduleGame = ScheduleGameWithoutKey & {
@@ -1645,6 +1753,18 @@ export type Team = {
 				G: number[];
 		  }
 		| {
+				GK: number[];
+				CB: number[];
+				LB: number[];
+				RB: number[];
+				DM: number[];
+				CM: number[];
+				AM: number[];
+				LW: number[];
+				RW: number[];
+				ST: number[];
+		  }
+		| {
 				L: number[]; // Lineup
 				LP: number[]; // Lineup (no DH)
 				D: number[]; // Defense
@@ -1667,6 +1787,10 @@ export type Team = {
 	// User-set coaching style dials (basketball only). Each is a signed level in
 	// [-1, 1], 0 = neutral. Only honored for the user's team; AI stays neutral.
 	coaching?: TeamCoaching;
+	soccerTactics?: SoccerTactics;
+	soccerAssociationId?: string;
+	soccerTier?: 1 | 2 | 3;
+	soccerAcademyIntakeSeason?: number;
 
 	// Remaining salary owed to fired coaches (basketball only). Counts against
 	// the coaching expense line each season through exp, then is pruned.
@@ -1733,6 +1857,7 @@ import type {
 } from "./types.basketball.ts";
 import type { TeamStatAttr as TeamStatAttrFootball } from "./types.football.ts";
 import type { TeamStatAttr as TeamStatAttrHockey } from "./types.hockey.ts";
+import type { TeamStatAttr as TeamStatAttrSoccer } from "./types.soccer.ts";
 import type { TIEBREAKERS } from "./constants.ts";
 import type { DropdownOption } from "../ui/hooks/useDropdownOptions.tsx";
 import type { LookingForState } from "../ui/views/TradingBlock/useLookingForState.ts";
@@ -1746,7 +1871,8 @@ type TeamStatsPlus = Record<TeamStatAttrBaseball, number> &
 	Record<TeamStatAttrByPosBaseball, number[]> &
 	Record<TeamStatAttrBasketball, number> &
 	Record<TeamStatAttrFootball, number> &
-	Record<TeamStatAttrHockey, number> & {
+	Record<TeamStatAttrHockey, number> &
+	Record<TeamStatAttrSoccer, number> & {
 		season: number;
 		playoffs: boolean;
 	};
@@ -1798,6 +1924,11 @@ export type TeamSeasonWithoutKey = {
 	gpHome: number; // Includes playoff games! Used for attendance average
 	att: number;
 	cash: number;
+	transferBudget?: number;
+	wageBudget?: number;
+	maxDebt?: number;
+	boardExpectation?:
+		"title" | "continental" | "topHalf" | "survive" | "develop";
 	won: number;
 	lost: number;
 	tied: number;
@@ -2011,6 +2142,11 @@ export type GetLeagueOptionsReal = {
 	// reinterpreted as modern players. Optional so old saved settings /
 	// exhibition callers default to "historical".
 	realTendencies?: "historical" | "historicalExact" | "skill";
+	// How strongly tendencies track each specific season of a player's career
+	// (0 = one career-aggregate identity across all seasons, 1 = fully
+	// per-season: 2010 Curry plays like 2010 Curry). Only applies to the
+	// historical modes. Optional so old saved settings default to 1.
+	realTendenciesSeasonality?: number;
 	includePlayers: boolean;
 
 	// For exhibition game only

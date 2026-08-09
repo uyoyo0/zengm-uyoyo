@@ -2,6 +2,7 @@ import processStatsBaseball from "./processStats.baseball.ts";
 import processStatsBasketball from "./processStats.basketball.ts";
 import processStatsFootball from "./processStats.football.ts";
 import processStatsHockey from "./processStats.hockey.ts";
+import processStatsSoccer from "./processStats.soccer.ts";
 import type {
 	TeamStatAttr,
 	TeamStatType,
@@ -20,6 +21,7 @@ const processStats = (
 		basketball: processStatsBasketball(ts, stats, playoffs, statType),
 		football: processStatsFootball(ts, stats, playoffs),
 		hockey: processStatsHockey(ts, stats, playoffs),
+		soccer: processStatsSoccer(ts, stats, playoffs),
 	});
 };
 

@@ -18,7 +18,11 @@ import { GameSim, player, realRosters, team } from "../core/index.ts";
 import { processTeam } from "../core/game/loadTeams.ts";
 import { gameSimToBoxScore } from "../core/game/writeGameStats.ts";
 import { getRosterOrderByPid } from "../core/team/rosterAutoSort.basketball.ts";
-import { connectLeague, idb } from "../db/index.ts";
+import { connectLeague } from "../db/index.ts";
+import {
+	getLeagueForCurrentSport,
+	getLeaguesForCurrentSport,
+} from "../db/leagueSport.ts";
 import { getPlayersActiveSeason } from "../db/getCopies/players.ts";
 import { g, helpers, local, toUI } from "../util/index.ts";
 import { boxScoreToLiveSim } from "../views/liveGame.ts";
@@ -29,7 +33,7 @@ import { randInt } from "../../common/random.ts";
 import { defaultGameAttributes } from "../../common/defaultGameAttributes.ts";
 
 export const getLeagues = async () => {
-	const leagues = await idb.meta.getAll("leagues");
+	const leagues = await getLeaguesForCurrentSport();
 	return leagues
 		.map((league) => ({
 			lid: league.lid,
@@ -39,6 +43,9 @@ export const getLeagues = async () => {
 };
 
 export const getSeasons = async (lid: number) => {
+	if (!(await getLeagueForCurrentSport(lid))) {
+		throw new Error("League not found");
+	}
 	const league = await connectLeague(lid);
 	const store = league.transaction("gameAttributes").store;
 	const season = await store.get("season");
@@ -72,6 +79,9 @@ const getSeasonInfoLeague = async ({
 	season: number;
 	pidOffset: number;
 }) => {
+	if (!(await getLeagueForCurrentSport(lid))) {
+		throw new Error("League not found");
+	}
 	const league = await connectLeague(lid);
 
 	const getGameAttribute = async <T extends keyof GameAttributesLeague>(

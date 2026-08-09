@@ -9,7 +9,8 @@ import { bySport, isSport } from "../../common/sportFunctions.ts";
 
 const DEFAULT_FORMULA = bySport({
 	baseball: "20 * mvp + war",
-	basketball: "20 * mvp + pts/gp + 2 * ast/gp + dwsPeak",
+	basketball:
+		"15 * mvp + 12 * finalsMvp + 6 * champ + 6 * dpoy + 4 * allLeague1 + 2 * allLeague2 + allLeague3 + 3 * allDefensive1 + allDefensive2 + 1.5 * allStar + (ows + dws + ewa) / 2",
 	football:
 		"20 * mvp + defTckSolo + defTckAst + 3 * pssTD + 10 * (rusTD + recTD)",
 	hockey: "20 * mvp + ops + dps + gps",
@@ -17,7 +18,8 @@ const DEFAULT_FORMULA = bySport({
 
 const DEFAULT_FORMULA_SEASON = bySport({
 	baseball: "5 * mvp + war",
-	basketball: "5 * mvp + pts/gp + 2 * ast/gp + dws",
+	basketball:
+		"8 * mvp + 6 * finalsMvp + 3 * champ + 3 * dpoy + 2 * allLeague1 + allLeague2 + 0.5 * allLeague3 + 1.5 * allDefensive1 + 0.5 * allDefensive2 + allStar + (ows + dws + ewa) / 2",
 	football:
 		"5 * mvp + defTckSolo + defTckAst + 3 * pssTD + 10 * (rusTD + recTD)",
 	hockey: "5 * mvp + ops + dps + gps",

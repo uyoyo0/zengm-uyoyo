@@ -99,6 +99,7 @@ export const buildIndexHtml = async ({
 				basketball: "c10b95290070cb8888a7a79cc5408555",
 				football: "fed8957cbfca2d1c80997897b840e6cf",
 				hockey: "449e8ed576f7cbccf5c7649e936ab9ff",
+				soccer: "",
 			}),
 		},
 		{
@@ -108,6 +109,7 @@ export const buildIndexHtml = async ({
 				basketball: "Basketball GM",
 				football: "Football GM",
 				hockey: "ZenGM Hockey",
+				soccer: "Soccer GM",
 			}),
 		},
 		{
@@ -117,6 +119,14 @@ export const buildIndexHtml = async ({
 				basketball: "basketball",
 				football: "football",
 				hockey: "hockey",
+				soccer: "soccer",
+			}),
+		},
+		{
+			searchValue: "Make trades, set rosters, draft players",
+			replaceValue: bySport(sport, {
+				soccer: "Manage transfers, set tactics, develop academy players",
+				default: "Make trades, set rosters, draft players",
 			}),
 		},
 		{
@@ -134,6 +144,7 @@ export const buildIndexHtml = async ({
 				basketball: "basketball-gm.com",
 				football: "football-gm.com",
 				hockey: "zengm.com/hockey",
+				soccer: "localhost",
 			}),
 		},
 		{
@@ -143,6 +154,7 @@ export const buildIndexHtml = async ({
 				basketball: "play.basketball-gm.com",
 				football: "play.football-gm.com",
 				hockey: "hockey.zengm.com",
+				soccer: "localhost",
 			}),
 		},
 		{
@@ -152,6 +164,7 @@ export const buildIndexHtml = async ({
 				basketball: "beta.basketball-gm.com",
 				football: "beta.football-gm.com",
 				hockey: "beta.hockey.zengm.com",
+				soccer: "localhost",
 			}),
 		},
 	];

@@ -106,6 +106,7 @@ const copyValidValues = (
 		basketball: false,
 		football: true,
 		hockey: true,
+		soccer: true,
 	});
 
 	if (source.pos === undefined) {
@@ -567,6 +568,7 @@ const CustomizePlayer = (props: View<"customizePlayer">) => {
 				basketball: [],
 				football: ["stre", "spd", "endu"],
 				hockey: ["stre", "spd", "endu"],
+				soccer: ["stre", "spd", "acc", "endu"],
 			});
 			const keys = [...posRatings(pos), ...extraKeys];
 
@@ -1217,6 +1219,7 @@ const CustomizePlayer = (props: View<"customizePlayer">) => {
 										basketball: "",
 										football: " and position",
 										hockey: " and position",
+										soccer: " and position",
 									},
 								)} as this player`}
 								onClick={async (event) => {
@@ -1231,6 +1234,7 @@ const CustomizePlayer = (props: View<"customizePlayer">) => {
 												basketball: undefined,
 												football: p.pos ?? autoPos,
 												hockey: p.pos ?? autoPos,
+												soccer: p.pos ?? autoPos,
 											}),
 										},
 									);

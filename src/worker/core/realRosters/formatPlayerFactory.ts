@@ -18,6 +18,7 @@ import { averageSalary } from "./averageSalary.ts";
 import { helpers } from "../../util/index.ts";
 import deriveTendencies, {
 	DERIVED_TENDENCY_NOISE,
+	deriveTendenciesPerSeason,
 } from "./deriveTendencies.basketball.ts";
 
 const MINUTES_PER_GAME = 48;
@@ -66,6 +67,12 @@ const formatPlayerFactory = async (
 			: realTendencies === "skill"
 				? 9 // match genTendencies' spread for random players
 				: 0;
+	// How strongly tendencies track each specific season of the career (0 =
+	// career-aggregate identity on every ratings row, 1 = fully per-season).
+	// Legends leagues always use per-season (the whole point is picking a
+	// specific vintage of a player).
+	const tendencySeasonality =
+		options.type === "real" ? (options.realTendenciesSeasonality ?? 1) : 1;
 
 	let basketballStats: BasketballStats | undefined;
 	// Index career stats by slug once, so per-player tendency derivation (and any
@@ -397,21 +404,37 @@ const formatPlayerFactory = async (
 			}
 		}
 
-		// Behavioral tendencies (usage/three/atRim/post/pass/clutch) for the sim.
-		// In the historical modes, derived from the player's real career stats when
-		// available (so shooters shoot threes, bigs post up, etc.) with optional
-		// per-league variation; in "skill" mode (or when stats are missing), from
-		// skill ratings. Applied to every ratings row as a career aggregate, since
-		// the sim reads tendencies off the active ratings row.
+		// Behavioral tendencies (usage/three/atRim/post/pass/clutch) and accuracy
+		// anchors for the sim. In the historical modes, derived from the player's
+		// real career stats when available (so shooters shoot threes, bigs post
+		// up, etc.) with optional per-league variation - per season (each ratings
+		// row carries that era of the player's game), blended toward the career
+		// aggregate by the tendencySeasonality setting. In "skill" mode (or when
+		// stats are missing), from skill ratings, identical on every row.
 		const careerStats =
 			realTendencies === "skill" ? [] : (statsBySlug?.get(slug) ?? []);
-		const tendencies = deriveTendencies(
-			careerStats,
-			processedRatings.at(-1)!,
-			tendencyNoise,
-		);
-		for (const row of processedRatings) {
-			Object.assign(row, tendencies);
+		if (realTendencies === "skill") {
+			const tendencies = deriveTendencies(
+				careerStats,
+				processedRatings as any,
+				tendencyNoise,
+			);
+			for (const row of processedRatings) {
+				Object.assign(row, tendencies);
+			}
+		} else {
+			const bySeason = deriveTendenciesPerSeason(
+				careerStats,
+				processedRatings as any,
+				tendencySeasonality,
+				tendencyNoise,
+			);
+			for (const row of processedRatings) {
+				const tendencies = bySeason.get(row.season);
+				if (tendencies) {
+					Object.assign(row, tendencies);
+				}
+			}
 		}
 
 		const name = legends ? `${bio.name} ${ratings.season}` : bio.name;

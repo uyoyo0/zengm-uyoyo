@@ -30,6 +30,7 @@ export const freeAgentStats = bySport({
 	basketball: ["min", "pts", "trb", "ast", "per"],
 	football: ["gp", "keyStats", "av"],
 	hockey: ["gp", "keyStats", "ops", "dps", "ps"],
+	soccer: ["gp", "keyStats", "g", "a", "matchRating"],
 });
 
 const isSeason = (

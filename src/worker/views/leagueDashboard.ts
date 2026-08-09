@@ -98,12 +98,14 @@ const updateTeams = async (inputs: unknown, updateEvents: UpdateEvents) => {
 				"rusYdsPerGame",
 			] as const,
 			hockey: ["g", "oppG"] as const,
+			soccer: ["g", "oppG", "sh", "sot"] as const,
 		});
 		const statNames = bySport({
 			baseball: ["Runs", "Allowed", "OPS", "ERA"],
 			basketball: ["Points", "Allowed", "Rebounds", "Assists"],
 			football: ["Points", "Allowed", "PssYds", "RusYds"],
 			hockey: ["Goals", "Allowed"],
+			soccer: ["Goals", "Allowed", "Shots", "On Target"],
 		});
 		const teams = await idb.getCopies.teamsPlus(
 			{
@@ -222,12 +224,14 @@ const updatePlayers = async (inputs: unknown, updateEvents: UpdateEvents) => {
 			basketball: ["gp", "min", "pts", "trb", "ast", "per"],
 			football: ["gp", "keyStats", "av"],
 			hockey: ["gp", "keyStats", "ops", "dps", "ps"],
+			soccer: ["gp", "keyStats", "g", "a", "matchRating"],
 		});
 		const leaderStats = bySport({
 			baseball: ["hr", "h", "w"],
 			basketball: ["pts", "trb", "ast"],
 			football: ["pssYds", "rusYds", "recYds"],
 			hockey: ["g", "a", "pts"],
+			soccer: ["g", "a", "matchRating"],
 		});
 		const playersAll = await idb.cache.players.indexGetAll("playersByTid", [
 			PLAYER.FREE_AGENT,

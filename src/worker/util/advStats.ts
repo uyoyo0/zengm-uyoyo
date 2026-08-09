@@ -3,6 +3,7 @@ import advStatsBaseball from "./advStats.baseball.ts";
 import advStatsBasketball from "./advStats.basketball.ts";
 import advStatsFootball from "./advStats.football.ts";
 import advStatsHockey from "./advStats.hockey.ts";
+import advStatsSoccer from "./advStats.soccer.ts";
 
 const advStats = () => {
 	return bySport({
@@ -10,6 +11,7 @@ const advStats = () => {
 		basketball: advStatsBasketball(),
 		football: advStatsFootball(),
 		hockey: advStatsHockey(),
+		soccer: advStatsSoccer(),
 	});
 };
 

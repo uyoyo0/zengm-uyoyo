@@ -16,7 +16,19 @@ const PositionFraction = ({
 	pos: string;
 }) => {
 	const count = players.filter((p) => p.ratings.pos === pos).length;
-	const target = Math.floor(POSITION_COUNTS[pos]!);
+	const rawTarget = POSITION_COUNTS[pos];
+	if (
+		typeof rawTarget !== "number" ||
+		!Number.isFinite(rawTarget) ||
+		rawTarget <= 0
+	) {
+		return (
+			<span className="text-danger">
+				{pos}: {count}/—
+			</span>
+		);
+	}
+	const target = Math.floor(rawTarget);
 	const ratio = count / target;
 
 	let classes: string | undefined;
@@ -57,6 +69,7 @@ export const RosterComposition = ({
 							basketball: "?",
 							football: "QB",
 							hockey: "G",
+							soccer: "CB",
 						})}
 						: 2/3
 					</p>
@@ -67,6 +80,7 @@ export const RosterComposition = ({
 							basketball: "?",
 							football: "quarterbacks",
 							hockey: "goalies",
+							soccer: "centre backs",
 						})}
 						, but it is recommended you have three.
 					</p>
@@ -78,6 +92,7 @@ export const RosterComposition = ({
 							basketball: "?",
 							football: "punters",
 							hockey: "goalies",
+							soccer: "strikers",
 						})}{" "}
 						if you want. But if your roster is too unbalanced, your team may not
 						perform very well, particularly when there are injuries and you have
@@ -156,6 +171,33 @@ export const RosterComposition = ({
 							<PositionFraction players={players} pos="W" />
 							<br />
 							<PositionFraction players={players} pos="G" />
+						</div>
+					</div>
+				),
+				soccer: (
+					<div className="mt-2 row">
+						<div className="col-4">
+							<PositionFraction players={players} pos="GK" />
+							<br />
+							<PositionFraction players={players} pos="CB" />
+							<br />
+							<PositionFraction players={players} pos="LB" />
+							<br />
+							<PositionFraction players={players} pos="RB" />
+						</div>
+						<div className="col-4">
+							<PositionFraction players={players} pos="DM" />
+							<br />
+							<PositionFraction players={players} pos="CM" />
+							<br />
+							<PositionFraction players={players} pos="AM" />
+						</div>
+						<div className="col-4">
+							<PositionFraction players={players} pos="LW" />
+							<br />
+							<PositionFraction players={players} pos="RW" />
+							<br />
+							<PositionFraction players={players} pos="ST" />
 						</div>
 					</div>
 				),

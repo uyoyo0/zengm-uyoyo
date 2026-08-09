@@ -57,6 +57,14 @@ const rows = bySport<
 			{ Defense: ["diq", "chk", "blk", "fcf", "glk"] },
 		],
 	],
+	soccer: [
+		[
+			{ Physical: ["hgt", "stre", "spd", "acc", "endu"] },
+			{ Technical: ["pas", "ftc", "drb", "crs", "fin", "sht", "hea"] },
+			{ Mental: ["oiq", "diq", "cmp", "tck"] },
+		],
+		[{ Goalkeeping: ["gkr", "gkh", "gkp"] }],
+	],
 });
 
 const RatingsForm = ({

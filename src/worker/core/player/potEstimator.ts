@@ -7,6 +7,7 @@ const POS_UNDER_100_MAX = bySport<Record<string, number> | undefined>({
 	basketball: undefined,
 	football: { K: 75, P: 75 },
 	hockey: { G: 90 },
+	soccer: undefined,
 });
 
 let potEstimator: (ovr: number, age: number, pos?: string) => number;
@@ -202,9 +203,19 @@ if (!isSport("basketball")) {
 				interaction: 0.01685319,
 			},
 		},
+		soccer: {},
 	});
 
 	potEstimator = (ovr: number, age: number, pos?: string) => {
+		if (isSport("soccer")) {
+			// Soccer development peaks in the late 20s. Unlike football and
+			// hockey, all positions use the same broad career curve.
+			return Math.min(
+				100,
+				ovr + Math.max(0, 27 - age) * 1.8 + randInt(-2, 2),
+			);
+		}
+
 		// https://github.com/microsoft/TypeScript/issues/21732
 		// @ts-expect-error
 		const coeffs = coeffsByPos[pos];

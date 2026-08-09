@@ -158,6 +158,7 @@ export const boxScoreToLiveSim = async ({
 			basketball: false,
 			football: true,
 			hockey: true,
+			soccer: true,
 		})
 	) {
 		initialBoxScore.scoringSummary = [];

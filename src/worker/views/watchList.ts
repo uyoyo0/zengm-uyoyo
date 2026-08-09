@@ -29,6 +29,7 @@ export const formatPlayersWatchList = async (
 		],
 		football: ["gp", "keyStats", "av"],
 		hockey: ["gp", "keyStats", "ops", "dps", "ps"],
+		soccer: ["gp", "keyStats", "g", "a", "matchRating"],
 	});
 
 	const players = addFirstNameShort(

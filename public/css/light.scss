@@ -1756,3 +1756,325 @@ tr.text-body-secondary {
 		border-top: 0;
 	}
 }
+
+// Soccer roster formation preview
+.soccer-squad {
+	border-color: var(--bs-border-color-translucent);
+	box-shadow: 0 0.35rem 1.2rem rgba(0, 0, 0, 0.08);
+}
+
+.soccer-squad-header {
+	background: var(--bs-body-bg);
+}
+
+.soccer-squad-sidebar {
+	background: var(--bs-tertiary-bg);
+	border-left: 1px solid var(--bs-border-color-translucent);
+}
+
+.soccer-section-heading {
+	margin: 0 0 0.55rem;
+	color: var(--bs-secondary-color);
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.soccer-pitch {
+	min-height: 480px;
+	background:
+		radial-gradient(
+			circle at 50% 48%,
+			rgba(255, 255, 255, 0.055),
+			transparent 34%
+		),
+		repeating-linear-gradient(
+			90deg,
+			rgba(255, 255, 255, 0.035) 0,
+			rgba(255, 255, 255, 0.035) 12.5%,
+			transparent 12.5%,
+			transparent 25%
+		),
+		linear-gradient(180deg, #17633f 0%, #125438 52%, #104a32 100%);
+	border: 1px solid rgba(153, 220, 181, 0.72);
+	box-shadow:
+		inset 0 0 48px rgba(0, 0, 0, 0.16),
+		0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.soccer-pitch-lineup {
+	min-height: 480px;
+}
+
+.soccer-player-slot {
+	flex: 1 1 0;
+	min-width: 0;
+	max-width: 116px;
+}
+
+.soccer-player-card {
+	display: flex;
+	min-height: 52px;
+	flex-direction: column;
+	justify-content: center;
+	padding: 0.35rem 0.48rem;
+	overflow: hidden;
+	background: rgba(9, 22, 17, 0.9);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 0.48rem;
+	box-shadow: 0 0.3rem 0.8rem rgba(0, 0, 0, 0.24);
+	color: #f7faf8 !important;
+	text-align: left;
+	text-decoration: none !important;
+	transition:
+		transform 120ms ease,
+		border-color 120ms ease,
+		background-color 120ms ease;
+
+	&:hover,
+	&:focus-visible {
+		background: rgba(14, 34, 25, 0.96);
+		border-color: rgba(255, 183, 92, 0.9);
+		color: #fff !important;
+		transform: translateY(-2px);
+	}
+
+	&.is-empty {
+		background: rgba(9, 22, 17, 0.45);
+		border-style: dashed;
+		box-shadow: none;
+		color: rgba(255, 255, 255, 0.62) !important;
+	}
+
+	&.is-injured {
+		border-color: rgba(220, 53, 69, 0.8);
+	}
+}
+
+.soccer-player-card-meta {
+	display: flex;
+	align-items: center;
+	gap: 0.28rem;
+	color: rgba(255, 255, 255, 0.66);
+	font-size: 0.67rem;
+	font-weight: 700;
+	letter-spacing: 0.035em;
+	line-height: 1;
+	text-transform: uppercase;
+}
+
+.soccer-player-duty {
+	display: inline-grid;
+	width: 1rem;
+	height: 1rem;
+	place-items: center;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 50%;
+	font-size: 0.58rem;
+}
+
+.soccer-player-rating {
+	margin-left: auto;
+	color: #ffc75f;
+	font-size: 0.78rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.soccer-player-name {
+	display: block;
+	margin-top: 0.25rem;
+	overflow: hidden;
+	font-size: 0.76rem;
+	font-weight: 650;
+	line-height: 1.1;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.soccer-player-injury {
+	margin-top: 0.18rem;
+	color: #ff8792;
+	font-size: 0.62rem;
+	font-weight: 600;
+}
+
+.soccer-tactic-card {
+	display: flex;
+	min-height: 54px;
+	flex-direction: column;
+	justify-content: center;
+	padding: 0.45rem 0.55rem;
+	background: var(--bs-body-bg);
+	border: 1px solid var(--bs-border-color-translucent);
+	border-radius: 0.45rem;
+
+	span {
+		color: var(--bs-secondary-color);
+		font-size: 0.68rem;
+	}
+
+	strong {
+		overflow: hidden;
+		font-size: 0.79rem;
+		line-height: 1.2;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+}
+
+.soccer-bench-card {
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 0.42rem;
+	padding: 0.42rem 0.5rem;
+	background: var(--bs-body-bg);
+	border: 1px solid var(--bs-border-color-translucent);
+	border-radius: 0.45rem;
+	color: var(--bs-body-color);
+	text-decoration: none !important;
+
+	&:hover,
+	&:focus-visible {
+		border-color: var(--bs-primary);
+		color: var(--bs-primary);
+	}
+
+	&.is-injured {
+		border-color: rgba(220, 53, 69, 0.65);
+	}
+
+	strong {
+		margin-left: auto;
+		font-variant-numeric: tabular-nums;
+	}
+}
+
+.soccer-bench-pos {
+	min-width: 1.8rem;
+	padding: 0.12rem 0.25rem;
+	background: var(--bs-secondary-bg);
+	border-radius: 0.35rem;
+	color: var(--bs-secondary-color);
+	font-size: 0.64rem;
+	font-weight: 700;
+	text-align: center;
+}
+
+.soccer-bench-name {
+	min-width: 0;
+	overflow: hidden;
+	font-size: 0.76rem;
+	font-weight: 600;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.soccer-tactics-editor {
+	border-color: var(--bs-border-color-translucent);
+	box-shadow: 0 0.35rem 1.2rem rgba(0, 0, 0, 0.08);
+}
+
+.soccer-tactics-pitch-scroll {
+	overflow-x: auto;
+	overscroll-behavior-inline: contain;
+}
+
+.soccer-tactics-pitch,
+.soccer-tactics-lineup {
+	min-width: 720px;
+	min-height: 560px;
+}
+
+.soccer-tactics-player-slot {
+	flex: 1 1 0;
+	min-width: 0;
+	max-width: 178px;
+}
+
+.soccer-tactics-player-card {
+	min-width: 0;
+	padding: 0.42rem;
+	background: rgba(9, 22, 17, 0.94);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 0.5rem;
+	box-shadow: 0 0.3rem 0.8rem rgba(0, 0, 0, 0.22);
+	color: #f7faf8;
+
+	&.is-injured {
+		border-color: rgba(220, 53, 69, 0.8);
+	}
+
+	.text-body-secondary {
+		color: rgba(255, 255, 255, 0.6) !important;
+	}
+
+	.form-select {
+		color-scheme: dark;
+		background-color: #17241d;
+		border-color: rgba(255, 255, 255, 0.2);
+		color: #f7faf8;
+		font-size: 0.7rem;
+	}
+}
+
+.soccer-tactics-slot {
+	color: rgba(255, 255, 255, 0.7);
+	font-size: 0.68rem;
+	letter-spacing: 0.04em;
+}
+
+.soccer-tactics-rating {
+	margin-left: auto;
+	color: #ffc75f;
+	font-size: 0.78rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.soccer-instruction-card {
+	display: block;
+	padding: 0.48rem 0.55rem 0.55rem;
+	background: var(--bs-body-bg);
+	border: 1px solid var(--bs-border-color-translucent);
+	border-radius: 0.45rem;
+
+	> span {
+		display: block;
+		margin-bottom: 0.28rem;
+		color: var(--bs-secondary-color);
+		font-size: 0.68rem;
+		font-weight: 600;
+	}
+}
+
+@include media-breakpoint-down(xl) {
+	.soccer-squad-sidebar {
+		border-top: 1px solid var(--bs-border-color-translucent);
+		border-left: 0;
+	}
+}
+
+@include media-breakpoint-down(md) {
+	.soccer-pitch,
+	.soccer-pitch-lineup {
+		min-height: 410px;
+	}
+
+	.soccer-player-slot {
+		max-width: 96px;
+	}
+
+	.soccer-player-card {
+		min-height: 46px;
+		padding: 0.28rem 0.36rem;
+	}
+
+	.soccer-player-duty {
+		display: none;
+	}
+
+	.soccer-player-name {
+		font-size: 0.68rem;
+	}
+}

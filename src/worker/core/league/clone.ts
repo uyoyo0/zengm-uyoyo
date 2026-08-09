@@ -1,5 +1,10 @@
 import type { IDBPDatabase } from "@dumbmatter/idb";
 import { connectLeague, idb } from "../../db/index.ts";
+import {
+	CURRENT_SPORT,
+	getLeagueForCurrentSport,
+	getLeaguesForCurrentSport,
+} from "../../db/leagueSport.ts";
 import { getNewLeagueLid } from "../../util/getNewLeagueLid.ts";
 import remove from "./remove.ts";
 
@@ -79,13 +84,13 @@ const clone = async (lidOld: number) => {
 	let name = "";
 
 	try {
-		dbOld = await connectLeague(lidOld);
-		const leagueOld = await idb.meta.get("leagues", lidOld);
+		const leagueOld = await getLeagueForCurrentSport(lidOld);
 		if (!leagueOld) {
 			throw new Error("League not found");
 		}
+		dbOld = await connectLeague(lidOld);
 
-		const namesOld = (await idb.meta.getAll("leagues")).map(
+		const namesOld = (await getLeaguesForCurrentSport()).map(
 			(league) => league.name,
 		);
 		name = getCloneName(leagueOld.name, namesOld);
@@ -95,6 +100,7 @@ const clone = async (lidOld: number) => {
 
 		const leagueNew = {
 			lid,
+			sport: CURRENT_SPORT,
 			name,
 			tid: leagueOld.tid,
 			phaseText: leagueOld.phaseText,

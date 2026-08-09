@@ -104,6 +104,7 @@ const updateHistory = async (inputs: unknown, updateEvents: UpdateEvents) => {
 			],
 			football: ["finalsMvp", "mvp", "opoy", "poy", "dpoy", "oroy", "droy"],
 			hockey: ["finalsMvp", "mvp", "dpoy", "dfoy", "goy", "roy"],
+			soccer: ["finalsMvp", "mvp", "dpoy", "goy", "roy"],
 		});
 
 		const seasons: any[] = range(minSeason, maxSeason + 1).map((season) => {

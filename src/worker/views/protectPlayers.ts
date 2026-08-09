@@ -33,6 +33,7 @@ const updateProtectPlayers = async () => {
 		basketball: ["yearsWithTeam", "gp", "min", "pts", "trb", "ast", "per"],
 		football: ["yearsWithTeam", "gp", "keyStats", "av"],
 		hockey: ["yearsWithTeam", "gp", "keyStats", "ops", "dps", "ps"],
+		soccer: ["yearsWithTeam", "gp", "keyStats", "g", "a", "matchRating"],
 	});
 
 	let players: any[] = [];

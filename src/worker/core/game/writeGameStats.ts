@@ -230,6 +230,10 @@ export const gameSimToBoxScore = async (results: GameResults, att: number) => {
 			},
 		],
 	};
+	gameStats.compId = results.compId;
+	gameStats.competitionStage = results.competitionStage;
+	gameStats.tieId = results.tieId;
+	gameStats.requiresWinner = results.requiresWinner;
 	if (results.forceWin !== undefined) {
 		gameStats.forceWin = results.forceWin;
 	}

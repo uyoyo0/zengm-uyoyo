@@ -62,6 +62,15 @@ const genPlayersWithoutSaving = async (
 		Math.round((g.get("numDraftRounds") * g.get("numActiveTeams") * 7) / 6),
 		normalNumPlayers,
 	);
+	if (isSport("soccer")) {
+		// Soccer has academy/free-agent intake rather than a draft, so zero draft
+		// rounds must not mean zero generated players. League creation simulates
+		// historical intake classes and needs enough surviving players to fill all
+		// 162 club rosters plus the free-agent pool.
+		baseNumPlayers = Math.ceil(
+			((g.get("maxRosterSize") + 1) * g.get("numActiveTeams")) / 15,
+		);
+	}
 
 	// Based on draftAges, forceRetireAge, and forceRetireSeasons settings, check how many players we need per draft class to fill the league. KEEP IN SYNC WITH LEAGUE CREATION seasonsSimmed
 	const draftAges = g.get("draftAges");

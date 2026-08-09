@@ -34,8 +34,11 @@ export const COMPOSITE_WEIGHTS: CompositeWeights<RatingKey> = {
 		weights: [0.5, 1, 1, -1],
 	},
 	shootingAtRim: {
-		ratings: ["hgt", "stre", "dnk", "oiq"],
-		weights: [2, 0.3, 0.3, 0.2],
+		// Height still matters most (dunks, putbacks, finishing over contests),
+		// but explosiveness (jmp) and finishing skill (dnk) separate a lob threat
+		// from a ground-bound big, and slow/earthbound players finish worse.
+		ratings: ["hgt", "stre", "jmp", "dnk", "oiq"],
+		weights: [1.5, 0.3, 0.5, 0.4, 0.2],
 	},
 	shootingLowPost: {
 		ratings: ["hgt", "stre", "spd", "ins", "oiq"],

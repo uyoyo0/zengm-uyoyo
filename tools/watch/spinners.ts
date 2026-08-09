@@ -37,6 +37,7 @@ const SPORT_EMOJIS = {
 	football: "🏈",
 	baseball: "⚾",
 	hockey: "🏒",
+	soccer: "⚽",
 };
 
 const DEBOUNCE_SPORT_MENU_WAIT = 500; // [milliseconds]

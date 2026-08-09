@@ -10,6 +10,7 @@ type Skills = {
 	stre?: number;
 	fg?: number;
 	oiq?: number;
+	drb?: number;
 	pss?: number;
 };
 
@@ -65,18 +66,101 @@ export const USAGE_DRIFT_MAX_STEP = 6; // tendency points per year
 export const driftUsageTendency = (
 	ratings: Skills & { tendencyUsage?: number },
 	coachTactics = 50,
+	// Scales the whole step; the preseason logic passes (1 - tendency
+	// determinism) for real players still within their real-data span.
+	strength = 1,
 ) => {
+	if (strength <= 0) {
+		return;
+	}
 	const current = ratings.tendencyUsage ?? 50;
 	const implied = skillTendencyBases(ratings).tendencyUsage;
 	const rate =
 		USAGE_DRIFT_BASE +
 		USAGE_DRIFT_TACTICS * (helpers.bound(coachTactics, 0, 100) / 100);
-	const step = helpers.bound(
-		rate * (implied - current) + realGauss(0, 1),
-		-USAGE_DRIFT_MAX_STEP,
-		USAGE_DRIFT_MAX_STEP,
-	);
+	const step =
+		strength *
+		helpers.bound(
+			rate * (implied - current) + realGauss(0, 1),
+			-USAGE_DRIFT_MAX_STEP,
+			USAGE_DRIFT_MAX_STEP,
+		);
 	ratings.tendencyUsage = helpers.bound(Math.round(current + step), 0, 100);
+};
+
+// Annual drift of the shot-mix/behavior tendencies toward what CURRENT skills
+// imply. Same pacing as usage drift (coach tactics speeds it up), same
+// bounded step. Without this, a young star's shot diet, passing lean, and
+// foul drawing stay frozen forever, and an aging player never keeps
+// declining behaviorally.
+//
+// The caller (newPhasePreseason) decides the strength: full for fictional
+// players and for real players past their real-data span; scaled by
+// (1 - tendency determinism) while still within the span, where the
+// determinism lerp toward the real career arc is the other force.
+//
+// The atRim/post athleticism skew is halved vs the generation baseline -
+// drifting long-simmed leagues toward the full-strength skew would recreate
+// the "athletic guards live at the rim" bias the stat-derived mixes fixed.
+export const driftShotTendencies = (
+	ratings: Skills & {
+		tendencyThree?: number;
+		tendencyAtRim?: number;
+		tendencyPost?: number;
+		tendencyPass?: number;
+		ftrDraw?: number;
+		tendencyDataEnd?: number;
+	},
+	coachTactics = 50,
+	strength = 1,
+) => {
+	if (strength <= 0) {
+		return;
+	}
+
+	const b = skillTendencyBases(ratings);
+	const rate =
+		USAGE_DRIFT_BASE +
+		USAGE_DRIFT_TACTICS * (helpers.bound(coachTactics, 0, 100) / 100);
+	const dnk = r(ratings, "dnk");
+	const spd = r(ratings, "spd");
+	const ins = r(ratings, "ins");
+	const hgt = r(ratings, "hgt");
+	const stre = r(ratings, "stre");
+	const drb = r(ratings, "drb");
+	const oiq = r(ratings, "oiq");
+
+	const targets: [keyof typeof ratings, number][] = [
+		["tendencyThree", b.tendencyThree],
+		["tendencyAtRim", 50 + ((dnk + spd) / 2 - 50) * 0.3],
+		["tendencyPost", 50 + ((ins + hgt + stre) / 3 - 50) * 0.3],
+		["tendencyPass", b.tendencyPass],
+	];
+	for (const [key, target] of targets) {
+		const current = (ratings[key] as number | undefined) ?? 50;
+		const step =
+			strength *
+			helpers.bound(
+				rate * (target - current) + realGauss(0, 1),
+				-USAGE_DRIFT_MAX_STEP,
+				USAGE_DRIFT_MAX_STEP,
+			);
+		(ratings[key] as number) = helpers.bound(
+			Math.round(current + step),
+			0,
+			100,
+		);
+	}
+
+	// FT drawing target from the foul-drawing skills (drawingFouls composite
+	// inputs); drifts slowly, no noise (it's a rate, not a 0-100 dial).
+	if (ratings.ftrDraw !== undefined) {
+		const drawAvg = (hgt + spd + drb + dnk + oiq) / 5;
+		const target = helpers.bound(0.25 + (drawAvg - 50) * 0.004, 0.08, 0.6);
+		const step =
+			strength * helpers.bound(rate * (target - ratings.ftrDraw), -0.02, 0.02);
+		ratings.ftrDraw = helpers.bound(ratings.ftrDraw + step, 0.02, 0.85);
+	}
 };
 
 // Behavioral tendencies correlated to a player's skills (a great shooter tends to

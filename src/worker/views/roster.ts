@@ -33,6 +33,7 @@ import {
 import { getActualPlayThroughInjuries } from "../core/game/loadTeams.ts";
 import { bySport, isSport } from "../../common/sportFunctions.ts";
 import { orderTeams } from "../util/orderTeams.ts";
+import { recoverSoccerFitness } from "../../common/soccer/fitness.ts";
 
 const sortByPos = (p: {
 	ratings: {
@@ -138,6 +139,7 @@ const updateRoster = async (
 			basketball: ["gp", "min", "pts", "trb", "ast", "per"],
 			football: ["gp", "keyStats", "av"],
 			hockey: ["gp", "amin", "keyStats", "ops", "dps", "ps"],
+			soccer: ["gp", "min", "keyStats", "g", "a", "matchRating"],
 		});
 
 		const editable =
@@ -176,6 +178,7 @@ const updateRoster = async (
 					"keepRosterSorted",
 					"playThroughInjuries",
 					"coaching",
+					"soccerTactics",
 				],
 				seasonAttrs,
 				stats: ["pts", "oppPts", "gp"],
@@ -211,9 +214,20 @@ const updateRoster = async (
 			"mood",
 			"value",
 			"awards",
+			"soccerFitness",
+			"soccerLastMatchDay",
 		]; // tid and draft are used for checking if a player can be released without paying his salary
 
-		const ratings = ["ovr", "pot", "dovr", "dpot", "skills", "pos", "ovrs"];
+		const ratings = [
+			"ovr",
+			"pot",
+			"dovr",
+			"dpot",
+			"skills",
+			"pos",
+			"ovrs",
+			"endu",
+		];
 		const stats2 = [...stats, "yearsWithTeam", "jerseyNumber", "min", "gp"];
 
 		let players: any[];
@@ -262,6 +276,24 @@ const updateRoster = async (
 				fuzz: true,
 				numGamesRemaining,
 			});
+			if (isSport("soccer")) {
+				const nextMatchDay = schedule
+					.filter(
+						(game) =>
+							game.homeTid === inputs.tid || game.awayTid === inputs.tid,
+					)
+					.map((game) => game.day)
+					.filter((day): day is number => typeof day === "number")
+					.toSorted((a, b) => a - b)[0];
+				for (const p of players) {
+					p.soccerFitness = recoverSoccerFitness({
+						day: nextMatchDay,
+						endurance: (50 + (p.ratings.endu ?? 50)) / 200,
+						fitness: p.soccerFitness,
+						lastMatchDay: p.soccerLastMatchDay,
+					});
+				}
+			}
 
 			if (isSport("basketball")) {
 				players.sort((a, b) => a.rosterOrder - b.rosterOrder);
@@ -506,14 +538,17 @@ const updateRoster = async (
 				g.get("spectator"),
 			showRelease,
 			showTradeFor:
+				!isSport("soccer") &&
 				inputs.season === g.get("season") &&
 				inputs.tid !== g.get("userTid") &&
 				!g.get("spectator"),
 			showTradingBlock:
+				!isSport("soccer") &&
 				inputs.season === g.get("season") &&
 				inputs.tid === g.get("userTid") &&
 				!g.get("spectator"),
 			stats,
+			soccerTactics: isSport("soccer") ? t.soccerTactics : undefined,
 			t: t2,
 			teamChemistry,
 			tid: inputs.tid,

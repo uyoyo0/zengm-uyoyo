@@ -4,6 +4,7 @@ import { g, helpers } from "../../util/index.ts";
 import type {
 	Player,
 	Conditions,
+	SoccerTactics,
 	TeamCoaching,
 } from "../../../common/types.ts";
 import {
@@ -113,6 +114,7 @@ export const processTeam = async (
 		playThroughInjuries: [number, number];
 		coaching?: TeamCoaching;
 		depth?: any;
+		soccerTactics?: SoccerTactics;
 	},
 	teamSeason: {
 		won: number;
@@ -228,6 +230,7 @@ export const processTeam = async (
 		},
 		compositeRating,
 		depth: teamInput.depth,
+		soccerTactics: teamInput.soccerTactics,
 
 		// The team's effective season style (set by its coach each preseason). Per-
 		// matchup adjustments are layered on later, once both teams are loaded.
@@ -269,6 +272,8 @@ export const processTeam = async (
 			jerseyNumber,
 			ptModifier: p.ptModifier,
 			ovrs: rating.ovrs,
+			fitness: isSport("soccer") ? (p.soccerFitness ?? 1) : undefined,
+			lastMatchDay: isSport("soccer") ? p.soccerLastMatchDay : undefined,
 
 			// Behavioral tendencies (0-100, 50 = neutral), used by the basketball sim.
 			tendencies: {
@@ -281,6 +286,16 @@ export const processTeam = async (
 				// Stats-derived (absolute) shot-mix tendencies skip era scaling.
 				absolute: (rating as any).tendencyAbsolute ?? false,
 			},
+			// Per-zone accuracy corrections (probMake deltas) for real players.
+			accuracies: {
+				atRim: (rating as any).accAtRim ?? 0,
+				lowPost: (rating as any).accLowPost ?? 0,
+				midRange: (rating as any).accMidRange ?? 0,
+				three: (rating as any).accThree ?? 0,
+				ft: (rating as any).accFT ?? 0,
+			},
+			// Career FTA/FGA foul-draw target (real players only).
+			ftrDraw: (rating as any).ftrDraw ?? undefined,
 			hotHand: 0,
 			systemFitFactor: 1,
 		};
@@ -378,6 +393,7 @@ export const processTeam = async (
 				"defFmbFrc",
 			],
 			hockey: ["shG", "evG", "ppG", "shA", "evA", "ppA"],
+			soccer: ["g", "a"],
 		});
 		if (seasonStatsKeys !== undefined) {
 			// Only look at regular season stats for All-Star Game, in case All-Star Game is in playoffs

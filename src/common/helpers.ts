@@ -10,6 +10,7 @@ import type {
 } from "./types.ts";
 import getTeamInfos from "./getTeamInfos.ts";
 import { isSport } from "./sportFunctions.ts";
+import { getSoccerTeamsDefault } from "./soccer/defaultWorld.ts";
 import { PHASE } from "./constants.ts";
 import { orderBy } from "./utils.ts";
 
@@ -114,7 +115,9 @@ const gameScoreBaseball = (
 
 const getTeamsDefault = (): TeamBasic[] => {
 	let teams: TeamBasic[];
-	if (isSport("baseball")) {
+	if (isSport("soccer")) {
+		teams = getSoccerTeamsDefault();
+	} else if (isSport("baseball")) {
 		teams = getTeamInfos([
 			{
 				tid: 0,

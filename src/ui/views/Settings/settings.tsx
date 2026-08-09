@@ -115,16 +115,14 @@ export const settings: Setting[] = (
 			descriptionLong: (
 				<>
 					<p>
-						Behavioral tendencies control how a player plays, independent of
-						how good he is: how many threes he takes, how often he attacks the
-						rim or posts up, how ball-dominant he is, and how much he looks to
-						pass.
+						Behavioral tendencies control how a player plays, independent of how
+						good he is: how many threes he takes, how often he attacks the rim
+						or posts up, how ball-dominant he is, and how much he looks to pass.
 					</p>
 					<p>
 						<b>Historical, with variation:</b> tendencies are derived from each
-						player's real career stats, with a little randomness so every
-						league plays out differently while players stay recognizably
-						themselves.
+						player's real career stats, with a little randomness so every league
+						plays out differently while players stay recognizably themselves.
 					</p>
 					<p>
 						<b>Historical, exact:</b> the same, but deterministic - a player's
@@ -132,8 +130,74 @@ export const settings: Setting[] = (
 					</p>
 					<p>
 						<b>Skill-based:</b> tendencies follow ratings instead of history -
-						historical players are reinterpreted as modern players (e.g. a
-						great shooter from the 1980s will shoot threes at modern volume).
+						historical players are reinterpreted as modern players (e.g. a great
+						shooter from the 1980s will shoot threes at modern volume).
+					</p>
+				</>
+			),
+		},
+		{
+			category: "New League",
+			key: "realTendenciesSeasonality",
+			name: "Tendency Seasonality",
+			// Also editable in existing leagues (god mode): it shapes the
+			// per-season targets that Tendency Determinism chases each preseason,
+			// and what bbgm.debug.rederiveTendencies() produces.
+			showOnlyIf: ({ newLeague, hasPlayers, realPlayers, crossEra }) =>
+				!newLeague || (hasPlayers && realPlayers) || crossEra,
+			godModeRequired: "existingLeagueOnly",
+			type: "rangePercent",
+			description:
+				"How strongly historical tendencies track each specific season of a player's career, rather than his career as a whole.",
+			descriptionLong: (
+				<>
+					<p>
+						At 100%, each season of a player's career carries that era of his
+						game: 2010 Curry plays like a young slasher-shooter, 2016 Curry like
+						the unanimous MVP, and an aging star's shot diet and free-throw
+						drawing decline the way they really did (smoothed across neighboring
+						seasons so thin seasons aren't noisy).
+					</p>
+					<p>
+						At 0%, every season uses one career-average identity, so a player
+						plays the same way his whole career. Values in between blend the
+						two. Has no effect when Player Tendencies is set to Skill-based.
+					</p>
+				</>
+			),
+		},
+		{
+			category: "New League",
+			key: "realTendencyDeterminism",
+			name: "Tendency Determinism",
+			showOnlyIf: ({ newLeague, hasPlayers, realPlayers, crossEra }) =>
+				!newLeague || (hasPlayers && realPlayers) || crossEra,
+			godModeRequired: "existingLeagueOnly",
+			type: "rangePercent",
+			description:
+				"Each preseason, how strongly a real player's tendencies keep following his real career arc, versus drifting with how his skills develop in this league.",
+			descriptionLong: (
+				<>
+					<p>
+						While the league is still within a real player's actual career span,
+						this controls what happens to his behavioral tendencies (shot mix,
+						passing, foul drawing) each preseason.
+					</p>
+					<p>
+						<b>100%:</b> his tendencies re-track his real career season by
+						season - a 2006-league KG shoots like real 2010 KG in 2010 - even if
+						his career unfolds differently in your league.
+					</p>
+					<p>
+						<b>0%:</b> his tendencies match real life at creation, then
+						immediately start drifting with his in-league development, like a
+						fictional player's would.
+					</p>
+					<p>
+						Values in between move his tendencies partway toward the real arc
+						each year and let sim development pull the rest. Once the league
+						passes the end of his real career data, skill-based drift always
+						takes over.
 					</p>
 				</>
 			),

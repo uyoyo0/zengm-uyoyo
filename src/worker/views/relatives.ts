@@ -113,6 +113,7 @@ const updatePlayers = async (
 			],
 			football: ["gp", "keyStats", "av"],
 			hockey: ["gp", "keyStats", "ops", "dps", "ps"],
+			soccer: ["gp", "keyStats", "g", "a", "matchRating"],
 		});
 
 		let playersAll: Player[] = [];

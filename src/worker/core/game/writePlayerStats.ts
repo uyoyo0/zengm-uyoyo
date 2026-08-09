@@ -173,6 +173,7 @@ const doInjury = async (
 		basketball: p2.injury.gamesRemaining,
 		football: p2.injury.gamesRemaining * 3,
 		hockey: p2.injury.gamesRemaining,
+		soccer: p2.injury.gamesRemaining,
 	});
 
 	if (
@@ -190,6 +191,7 @@ const doInjury = async (
 			basketball: ["spd", "endu", "jmp"],
 			football: ["spd", "endu", "thp"],
 			hockey: ["spd", "endu"],
+			soccer: ["spd", "acc", "endu"],
 		});
 		for (const rating of ratingsToNerf) {
 			(newRatings as any)[rating] = player.limitRating(
@@ -343,6 +345,7 @@ const writePlayerStats = async (
 					basketball: true,
 					football: p.stat.min > 0,
 					hockey: p.pos === "G" || p.stat.min > 0,
+					soccer: p.stat.min > 0,
 				});
 				if (!updatePlayer) {
 					if (addNewStatsRow) {
@@ -397,6 +400,16 @@ const writePlayerStats = async (
 				}
 
 				if (!allStarGame) {
+					if (
+						isSport("soccer") &&
+						p.stat.min > 0 &&
+						typeof p.fitnessEnd === "number"
+					) {
+						p2.soccerFitness = helpers.bound(p.fitnessEnd, 0.35, 1);
+						if (typeof result.day === "number") {
+							p2.soccerLastMatchDay = result.day;
+						}
+					}
 					if (isSport("hockey")) {
 						if (p2.pid === goaliePID) {
 							if (p2.numConsecutiveGamesG === undefined) {
@@ -420,6 +433,11 @@ const writePlayerStats = async (
 					// Update stats
 					const playedInGame = p.stat.gp > 0;
 					if (playedInGame) {
+						// Existing soccer stat rows predate PSxG. Treat their historical
+						// goals conceded as expected so goals-prevented starts neutrally.
+						if (isSport("soccer") && ps.psxg === undefined) {
+							ps.psxg = ps.ga ?? 0;
+						}
 						// Too many other parts of the codebase use "min", so put a dummy value there
 						if (isSport("baseball")) {
 							p.stat.min = 1;
@@ -465,6 +483,7 @@ const writePlayerStats = async (
 							basketball: ["2p", "2pa", "trb", "gmsc"],
 							hockey: ["g", "a", "pts"],
 							football: undefined,
+							soccer: undefined,
 						});
 						const derivedMaxValues: Record<string, number> | undefined =
 							derivedMaxStats

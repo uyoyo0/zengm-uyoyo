@@ -77,9 +77,7 @@ const writeTeamStats = async (results: GameResults) => {
 					results.team[t1].id,
 				);
 				baseAttendance *= getStarPowerFactor(
-					roster.map(
-						(p) => (p.ratings.at(-1) as any)?.popularity ?? 50,
-					),
+					roster.map((p) => (p.ratings.at(-1) as any)?.popularity ?? 50),
 				);
 			}
 
@@ -148,6 +146,7 @@ const writeTeamStats = async (results: GameResults) => {
 					basketball: 90000,
 					football: 200000,
 					hockey: 80000,
+					soccer: 250000,
 				});
 
 			// Only different for hockey
@@ -165,6 +164,7 @@ const writeTeamStats = async (results: GameResults) => {
 					basketball: true,
 					football: false,
 					hockey: true,
+					soccer: false,
 				})
 			) {
 				merchRevenue = (salaryCapFactor2 * 4.5 * baseAttendance) / 1000;
@@ -260,21 +260,25 @@ const writeTeamStats = async (results: GameResults) => {
 
 		let seasonLengthFactor;
 		if (g.get("phase") === PHASE.PLAYOFFS) {
-			let numGamesCurrent = 0;
-			for (const numGames of g.get("numGamesPlayoffSeries")) {
-				numGamesCurrent += Math.ceil((numGames * 3) / 4);
+			if (isSport("soccer")) {
+				seasonLengthFactor = 1;
+			} else {
+				let numGamesCurrent = 0;
+				for (const numGames of g.get("numGamesPlayoffSeries")) {
+					numGamesCurrent += Math.ceil((numGames * 3) / 4);
+				}
+				let numGamesDefault = 0;
+				// defaultGameAttributes.numGamesPlayoffSeries, but frozen in time because otherwise various coefficients below would need to be updated when it changes
+				for (const numGames of bySport({
+					baseball: [3, 5, 7, 7],
+					basketball: [7, 7, 7, 7],
+					football: [1, 1, 1, 1],
+					hockey: [7, 7, 7, 7],
+				})) {
+					numGamesDefault += Math.ceil((numGames * 3) / 4);
+				}
+				seasonLengthFactor = numGamesDefault / numGamesCurrent;
 			}
-			let numGamesDefault = 0;
-			// defaultGameAttributes.numGamesPlayoffSeries, but frozen in time because otherwise various coefficients below would need to be updated when it changes
-			for (const numGames of bySport({
-				baseball: [3, 5, 7, 7],
-				basketball: [7, 7, 7, 7],
-				football: [1, 1, 1, 1],
-				hockey: [7, 7, 7, 7],
-			})) {
-				numGamesDefault += Math.ceil((numGames * 3) / 4);
-			}
-			seasonLengthFactor = numGamesDefault / numGamesCurrent;
 		} else {
 			// defaultGameAttributes.numGames, but frozen in time because otherwise various coefficients below would need to be updated when it changes
 			seasonLengthFactor =
@@ -283,6 +287,7 @@ const writeTeamStats = async (results: GameResults) => {
 					basketball: 82,
 					football: 17,
 					hockey: 82,
+					soccer: 38,
 				}) / g.get("numGames");
 		}
 
@@ -336,6 +341,11 @@ const writeTeamStats = async (results: GameResults) => {
 				default: ["ptsQtrs", "gp"],
 			}),
 		);
+		// Preserve a neutral goals-prevented baseline when upgrading an existing
+		// soccer season that did not record post-shot xG.
+		if (isSport("soccer") && teamStats.psxg === undefined) {
+			teamStats.psxg = teamStats.oppG ?? 0;
+		}
 
 		for (const key of Object.keys(results.team[t1].stat)) {
 			if (skip.has(key)) {

@@ -37,6 +37,7 @@ import {
 	season,
 } from "../core/index.ts";
 import { idb } from "../db/index.ts";
+import { getLeaguesForCurrentSport } from "../db/leagueSport.ts";
 import {
 	achievement,
 	g,
@@ -82,6 +83,15 @@ import {
 	RealPlayerPhotosSchema,
 	RealTeamInfoSchema,
 } from "../../common/types.ts";
+import {
+	completeTransfer,
+	generateAcademyIntake,
+	getTransferMarket,
+	requestTransferOffers,
+	submitTransferOffer,
+	updateSoccerTactics,
+	withdrawTransferOffer,
+} from "../core/soccer/transfers.ts";
 import {
 	addSimpleAndTeamAwardsToAwardsByPlayer,
 	type AwardsByPlayer,
@@ -1824,7 +1834,7 @@ const getLeagueName = () => {
 };
 
 const getLeagues = async () => {
-	return idb.meta.getAll("leagues");
+	return getLeaguesForCurrentSport();
 };
 
 const getNegotiationProps = async (pid: number) => {
@@ -5357,6 +5367,7 @@ export default {
 		cancelContractNegotiation,
 		checkAccount: checkAccount2,
 		checkParticipationAchievement,
+		completeTransfer,
 		clearInjuries,
 		clearSavedTrades,
 		clearNotes,
@@ -5381,6 +5392,7 @@ export default {
 		exportPlayerAveragesCsv,
 		exportPlayerGamesCsv,
 		generateFace: generateFace2,
+		generateAcademyIntake,
 		getAutoPos,
 		getBornLoc,
 		getDefaultInjuries,
@@ -5410,6 +5422,8 @@ export default {
 		getSavedTrade,
 		getTeamGraphStat,
 		getTradingBlockOffers,
+		getTransferMarket,
+		requestTransferOffers,
 		ping,
 		handleUploadedDraftClass,
 		idbCacheFlush,
@@ -5447,6 +5461,8 @@ export default {
 		setNote,
 		setSavedTrade,
 		setScheduleFromEditor,
+		submitTransferOffer,
+		withdrawTransferOffer,
 		updateExpansionDraftSetup,
 		advanceToPlayerProtection,
 		autoProtect,
@@ -5483,6 +5499,7 @@ export default {
 		updatePlayingTime,
 		updatePlayoffTeams,
 		updateTeamInfo,
+		updateSoccerTactics,
 		updateTrade,
 		upgrade65,
 		upgrade65Estimate,

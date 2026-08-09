@@ -60,6 +60,7 @@ const updatePlayers = async (
 					basketball: "ewa",
 					football: "av",
 					hockey: "ps",
+					soccer: "matchRating",
 				}),
 			];
 		} else {

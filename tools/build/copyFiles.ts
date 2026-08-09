@@ -21,6 +21,7 @@ export const copyFiles = async (
 		"basketball",
 		"football",
 		"hockey",
+		"soccer",
 
 		// Handled by buildCss
 		"css",

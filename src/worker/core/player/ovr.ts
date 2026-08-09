@@ -2,6 +2,7 @@ import ovrBaseball from "./ovr.baseball.ts";
 import ovrBasketball from "./ovr.basketball.ts";
 import ovrFootball from "./ovr.football.ts";
 import ovrHockey from "./ovr.hockey.ts";
+import ovrSoccer from "./ovr.soccer.ts";
 import type { MinimalPlayerRatings } from "../../../common/types.ts";
 import { bySport } from "../../../common/sportFunctions.ts";
 
@@ -11,6 +12,7 @@ const ovr = (ratings: MinimalPlayerRatings, pos?: string) => {
 		basketball: ovrBasketball,
 		football: ovrFootball,
 		hockey: ovrHockey,
+		soccer: ovrSoccer,
 	})(ratings, pos);
 };
 

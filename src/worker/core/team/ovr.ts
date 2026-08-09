@@ -5,6 +5,7 @@ import ovrBaseball from "./ovr.baseball.ts";
 import ovrBasketball from "./ovr.basketball.ts";
 import ovrFootball from "./ovr.football.ts";
 import ovrHockey from "./ovr.hockey.ts";
+import ovrSoccer from "./ovr.soccer.ts";
 
 // pos is used for position-specific rankings
 // wholeRoster=true is used for computing team value of the whole roster, like for determining who to draft or sign
@@ -66,6 +67,7 @@ const ovr = (
 		basketball: ovrBasketball,
 		football: ovrFootball,
 		hockey: ovrHockey,
+		soccer: ovrSoccer,
 	})(players2, options);
 };
 

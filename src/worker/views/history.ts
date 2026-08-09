@@ -2,7 +2,8 @@ import { idb } from "../db/index.ts";
 import { g, local, updatePlayMenu } from "../util/index.ts";
 import type { UpdateEvents, ViewInput } from "../../common/types.ts";
 import { SIMPLE_AWARDS } from "../../common/constants.ts";
-import { bySport } from "../../common/sportFunctions.ts";
+import { bySport, isSport } from "../../common/sportFunctions.ts";
+import getSoccerCupMvp from "./history.soccer.ts";
 
 const viewedSeasonSummary = async () => {
 	local.unviewedSeasonSummary = false;
@@ -75,6 +76,7 @@ const updateHistory = async (
 			basketball: ["allRookie", "sfmvp"],
 			football: ["allRookie"],
 			hockey: ["allRookie"],
+			soccer: ["allRookie"],
 		});
 		for (const key of flatTeams) {
 			if (awards[key]) {
@@ -115,6 +117,16 @@ const updateHistory = async (
 				t.seasonAttrs.playoffRoundsWon ===
 				g.get("numGamesPlayoffSeries", season).length,
 		);
+		if (isSport("soccer") && champ) {
+			const cupMvp = await getSoccerCupMvp({
+				abbrev: champ.seasonAttrs.abbrev,
+				season,
+				tid: champ.tid,
+			});
+			if (cupMvp) {
+				awards.finalsMvp = cupMvp;
+			}
+		}
 
 		return {
 			awards,

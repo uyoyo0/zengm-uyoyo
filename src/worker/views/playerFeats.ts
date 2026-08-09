@@ -64,6 +64,12 @@ const updatePlayers = async (
 				for (const stat of toAdd) {
 					feat.stats[stat] = processed[stat];
 				}
+			} else if (isSport("soccer")) {
+				const toAdd = ["pasPct", "aerialPct", "svPct"];
+				const processed = processPlayerStats(feat.stats, toAdd);
+				for (const stat of toAdd) {
+					feat.stats[stat] = processed[stat];
+				}
 			}
 
 			const overtimeText = helpers.overtimeText(
@@ -182,6 +188,34 @@ const updatePlayers = async (
 				"tk",
 				"gv",
 				"sv",
+			],
+			soccer: [
+				"gs",
+				"min",
+				"g",
+				"a",
+				"sh",
+				"sot",
+				"xg",
+				"xa",
+				"pas",
+				"pasCmp",
+				"pasPct",
+				"kp",
+				"tkl",
+				"int",
+				"clr",
+				"aw",
+				"aa",
+				"aerialPct",
+				"fl",
+				"yc",
+				"rc",
+				"sv",
+				"ga",
+				"cs",
+				"svPct",
+				"matchRating",
 			],
 		});
 		return {

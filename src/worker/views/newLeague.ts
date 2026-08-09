@@ -10,6 +10,7 @@ import { defaultInjuries } from "../util/defaultInjuries.ts";
 import { newLeagueGodModeLimits } from "../util/newLeagueGodModeLimits.ts";
 import { getNewLeagueLid } from "../util/getNewLeagueLid.ts";
 import { defaultGameAttributes } from "../../common/defaultGameAttributes.ts";
+import { getLeagueForCurrentSport } from "../db/leagueSport.ts";
 
 const getDefaultRealStats = () => {
 	return env.mobile ? "none" : "allActiveHOF";
@@ -232,6 +233,14 @@ export const getDefaultSettings = () => {
 		randomization: "none",
 		realStats: getDefaultRealStats(),
 		realTendencies: "historical",
+		realTendenciesSeasonality: unwrapGameAttribute(
+			defaultGameAttributes,
+			"realTendenciesSeasonality",
+		),
+		realTendencyDeterminism: unwrapGameAttribute(
+			defaultGameAttributes,
+			"realTendencyDeterminism",
+		),
 		hofFactor: unwrapGameAttribute(defaultGameAttributes, "hofFactor"),
 		injuries: defaultInjuries,
 		inflationAvg: unwrapGameAttribute(defaultGameAttributes, "inflationAvg"),
@@ -477,7 +486,7 @@ const updateNewLeague = async ({ lid, type }: ViewInput<"newLeague">) => {
 
 	if (lid !== undefined) {
 		// Importing!
-		const l = await idb.meta.get("leagues", lid);
+		const l = await getLeagueForCurrentSport(lid);
 
 		if (l) {
 			return {

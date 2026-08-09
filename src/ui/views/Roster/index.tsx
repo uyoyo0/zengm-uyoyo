@@ -37,6 +37,7 @@ import { SafeHtml } from "../../components/SafeHtml.tsx";
 import { HelpPopover } from "../../components/HelpPopover.tsx";
 import { confirm } from "../../util/confirm.tsx";
 import { bySport, isSport } from "../../../common/sportFunctions.ts";
+import SoccerSquad from "./SoccerSquad.tsx";
 
 const handleRelease = async (
 	p: View<"roster">["players"][number],
@@ -109,6 +110,7 @@ const Roster = ({
 	showRelease,
 	showTradeFor,
 	showTradingBlock,
+	soccerTactics,
 	stats,
 	t,
 	teamChemistry,
@@ -123,6 +125,7 @@ const Roster = ({
 		phase,
 		salaryCapType,
 		season: currentSeason,
+		spectator,
 		userTid,
 	} = useLocal([
 		"challengeNoRatings",
@@ -130,6 +133,7 @@ const Roster = ({
 		"phase",
 		"salaryCapType",
 		"season",
+		"spectator",
 		"userTid",
 	]);
 
@@ -461,6 +465,15 @@ const Roster = ({
 				<p className="alert alert-danger d-inline-block">
 					The AI will handle roster management in spectator mode.
 				</p>
+			) : null}
+
+			{isSport("soccer") && season === currentSeason ? (
+				<SoccerSquad
+					canEdit={tid === userTid && !spectator}
+					players={playersSorted}
+					showRatings={!challengeNoRatings}
+					tactics={soccerTactics}
+				/>
 			) : null}
 
 			<DataTable

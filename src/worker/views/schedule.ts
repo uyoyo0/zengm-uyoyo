@@ -212,6 +212,7 @@ export const getTopPlayers = async <T extends any[]>(
 				basketball: ["pts", "trb", "ast"],
 				football: undefined, // football keyStats is too long
 				hockey: ["keyStats"],
+				soccer: ["keyStats"],
 			}),
 			showNoStats: true,
 			showRookies: true,
@@ -226,6 +227,7 @@ export const getTopPlayers = async <T extends any[]>(
 			basketball: false,
 			football: false,
 			hockey: true,
+			soccer: false,
 		})
 	) {
 		// Show SP/G rather than best player

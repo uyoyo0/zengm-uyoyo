@@ -5,6 +5,7 @@ import genRatingsBaseball from "./genRatings.baseball.ts";
 import genRatingsBasketball from "./genRatings.basketball.ts";
 import genRatingsFootball from "./genRatings.football.ts";
 import genRatingsHockey from "./genRatings.hockey.ts";
+import genRatingsSoccer from "./genRatings.soccer.ts";
 import pos from "./pos.ts";
 import { bySport } from "../../../common/sportFunctions.ts";
 
@@ -17,6 +18,7 @@ const genRatings = (season: number, scoutingLevel: number) => {
 		basketball: genRatingsBasketball(season, scoutingLevel),
 		football: genRatingsFootball(season, scoutingLevel),
 		hockey: genRatingsHockey(season, scoutingLevel),
+		soccer: genRatingsSoccer(season, scoutingLevel),
 	});
 
 	// Should correspond to defaultGameAttributes.draftAges[0], but maybe they will diverge in the future..
@@ -25,6 +27,7 @@ const genRatings = (season: number, scoutingLevel: number) => {
 		basketball: 19,
 		football: 21,
 		hockey: 18,
+		soccer: 16,
 	});
 
 	// Apply bonus/penalty based on age, to simulate extra/fewer years of development that a player should have gotten. For older players, this is bounded by an upper limit, because players stop developing eventually. You might think player.develop should be used here, at least for old players, but that would result in old players all being horrible, which is no fun.
@@ -102,6 +105,10 @@ const genRatings = (season: number, scoutingLevel: number) => {
 				"diq",
 				"glk",
 			],
+			soccer: [
+				"stre", "endu", "pas", "ftc", "drb", "crs", "fin", "sht",
+				"hea", "tck", "oiq", "diq", "cmp", "gkr", "gkh", "gkp",
+			],
 		});
 
 		const rtgsDevelopSlow = bySport({
@@ -109,6 +116,7 @@ const genRatings = (season: number, scoutingLevel: number) => {
 			basketball: ["spd", "jmp", "drb", "pss", "reb"],
 			football: ["spd"],
 			hockey: ["spd"],
+			soccer: ["spd", "acc"],
 		});
 
 		for (const rtg of rtgs) {

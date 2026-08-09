@@ -12,8 +12,19 @@ import type {
 } from "../../../../common/types.ts";
 import { g } from "../../../util/index.ts";
 import { shuffle } from "../../../../common/random.ts";
+import { isSport } from "../../../../common/sportFunctions.ts";
+import createPremierLeaguePlayers, {
+	isDefaultPremierLeague,
+} from "./createPremierLeaguePlayers.ts";
 
 export const getNumPlayersPerTeam = () => {
+	if (isSport("soccer")) {
+		return Object.values(POSITION_COUNTS).reduce(
+			(sum, count) => sum + count,
+			0,
+		);
+	}
+
 	// 13 for basketball
 	return Math.max(g.get("maxRosterSize") - 2, g.get("minRosterSize"));
 };
@@ -30,6 +41,14 @@ const createRandomPlayers = async ({
 	teams: Pick<Team, "tid" | "retiredJerseyNumbers">[];
 }) => {
 	const players: PlayerWithoutKey[] = [];
+
+	if (
+		isSport("soccer") &&
+		!onlyFreeAgents &&
+		isDefaultPremierLeague(activeTids, teams)
+	) {
+		return createPremierLeaguePlayers(scoutingLevel);
+	}
 
 	// Generate past 20 years of draft classes, unless forceRetireSeasons/forceRetireAge/draftAges make that infeasible
 	let seasonsSimmed = 20;
@@ -62,96 +81,142 @@ const createRandomPlayers = async ({
 	const rookieSalaries = draft.getRookieSalaries();
 	let keptPlayers: PlayerWithoutKey[] = [];
 
-	for (
-		let numYearsAgo = NUM_PAST_SEASONS;
-		numYearsAgo > seasonOffset;
-		numYearsAgo--
-	) {
-		let draftClass = await draft.genPlayersWithoutSaving(
-			g.get("season"),
-			scoutingLevel,
-			[],
-		);
+	if (isSport("soccer")) {
+		// Soccer starts with many more clubs than the other sports. Generating a
+		// complete historical draft class for every past season produces thousands
+		// of players who are immediately discarded and makes new-league creation
+		// take minutes. Build the initial senior-player pool directly instead. The
+		// normal intake generator is still used after league creation.
+		const numPlayers = activeTids.length * (getNumPlayersPerTeam() + 6);
+		const minAge = g.get("draftAges")[0];
+		const maxAge = Math.min(g.get("forceRetireAge") - 1, 35);
 
-		// value is needed for ordering the historical draft class. This is value AT THE TIME OF THE DRAFT! Will be regenerated below for subsequent use.
-		for (const p of draftClass) {
-			p.value = player.value(p, {
-				ovrMean: 47,
-				ovrStd: 10,
-			});
-		}
+		for (let i = 0; i < numPlayers; i++) {
+			const age = minAge + (i % (maxAge - minAge + 1));
+			const p = await player.generate(
+				PLAYER.UNDRAFTED,
+				minAge,
+				g.get("season"),
+				false,
+				scoutingLevel,
+				await player.name(),
+				true,
+			);
 
-		// Very rough simulation of a draft
-		draftClass = orderBy(draftClass, "value", "desc");
-		const tids = [...activeTids];
-		shuffle(tids);
-
-		for (const [i, p] of draftClass.entries()) {
-			let round = 0;
-			let pick = 0;
-			const roundTemp = Math.floor(i / activeTids.length) + 1;
-
-			if (roundTemp <= g.get("numDraftRounds")) {
-				round = roundTemp;
-				pick = (i % activeTids.length) + 1;
-			}
-
-			// Save these for later, because player.develop will overwrite them
-
-			const pot = p.ratings[0].pot;
-			const ovr = p.ratings[0].ovr;
-			const skills = p.ratings[0].skills;
-
-			// Develop player and see if he is still non-retired
-
-			await player.develop(p, numYearsAgo, true);
-
-			// Do this before developing, to save ratings
-			p.draft = {
-				round,
-				pick,
-				tid: round === 0 ? -1 : tids[pick - 1]!,
-				year: g.get("season") - numYearsAgo,
-				originalTid: round === 0 ? -1 : tids[pick - 1]!,
-				pot,
-				ovr,
-				skills,
+			await player.develop(p, 0);
+			const draftRatings = {
+				ovr: p.ratings[0].ovr,
+				pot: p.ratings[0].pot,
+				skills: p.ratings[0].skills,
 			};
 
-			if (round === 0) {
-				// Guaranteed contracts for undrafted players are overwritten below
-				p.contract.exp = -Infinity;
-			} else {
-				let years;
-				if (g.get("draftPickAutoContract")) {
-					years = draft.getRookieContractLength(round);
-				} else {
-					// 2 years for 2nd round, 3 years for 1st round;
-					years = Math.min(4 - round, 2);
-				}
-
-				const contract: PlayerContract = {
-					amount: rookieSalaries[i]!,
-					exp: g.get("season") - numYearsAgo + years,
-				};
-				if (g.get("draftPickAutoContract")) {
-					contract.rookie = true;
-				}
-
-				player.setContract(p, contract, false);
-			}
+			await player.develop(p, age - minAge, true);
+			p.draft = {
+				round: 0,
+				pick: 0,
+				tid: -1,
+				originalTid: -1,
+				year: g.get("season") - (age - minAge),
+				...draftRatings,
+			};
+			p.contract.exp = -Infinity;
 			p.contract.temp = true;
-
 			keptPlayers.push(p);
 		}
-	}
+	} else {
+		for (
+			let numYearsAgo = NUM_PAST_SEASONS;
+			numYearsAgo > seasonOffset;
+			numYearsAgo--
+		) {
+			let draftClass = await draft.genPlayersWithoutSaving(
+				g.get("season"),
+				scoutingLevel,
+				[],
+			);
 
-	// (g.get("maxRosterSize") + 1) for wiggle room (need min contract FAs sometimes)
-	if (keptPlayers.length < (g.get("maxRosterSize") + 1) * activeTids.length) {
-		throw new Error("Not enough players!");
+			// value is needed for ordering the historical draft class. This is value AT THE TIME OF THE DRAFT! Will be regenerated below for subsequent use.
+			for (const p of draftClass) {
+				p.value = player.value(p, {
+					ovrMean: 47,
+					ovrStd: 10,
+				});
+			}
+
+			// Very rough simulation of a draft
+			draftClass = orderBy(draftClass, "value", "desc");
+			const tids = [...activeTids];
+			shuffle(tids);
+
+			for (const [i, p] of draftClass.entries()) {
+				let round = 0;
+				let pick = 0;
+				const roundTemp = Math.floor(i / activeTids.length) + 1;
+
+				if (roundTemp <= g.get("numDraftRounds")) {
+					round = roundTemp;
+					pick = (i % activeTids.length) + 1;
+				}
+
+				// Save these for later, because player.develop will overwrite them
+
+				const pot = p.ratings[0].pot;
+				const ovr = p.ratings[0].ovr;
+				const skills = p.ratings[0].skills;
+
+				// Develop player and see if he is still non-retired
+
+				await player.develop(p, numYearsAgo, true);
+
+				// Do this before developing, to save ratings
+				p.draft = {
+					round,
+					pick,
+					tid: round === 0 ? -1 : tids[pick - 1]!,
+					year: g.get("season") - numYearsAgo,
+					originalTid: round === 0 ? -1 : tids[pick - 1]!,
+					pot,
+					ovr,
+					skills,
+				};
+
+				if (round === 0) {
+					// Guaranteed contracts for undrafted players are overwritten below
+					p.contract.exp = -Infinity;
+				} else {
+					let years;
+					if (g.get("draftPickAutoContract")) {
+						years = draft.getRookieContractLength(round);
+					} else {
+						// 2 years for 2nd round, 3 years for 1st round;
+						years = Math.min(4 - round, 2);
+					}
+
+					const contract: PlayerContract = {
+						amount: rookieSalaries[i]!,
+						exp: g.get("season") - numYearsAgo + years,
+					};
+					if (g.get("draftPickAutoContract")) {
+						contract.rookie = true;
+					}
+
+					player.setContract(p, contract, false);
+				}
+				p.contract.temp = true;
+
+				keptPlayers.push(p);
+			}
+		}
 	}
 
 	const numPlayerPerTeam = getNumPlayersPerTeam();
+
+	// One extra per team for wiggle room (need min contract FAs sometimes).
+	// The soccer path explicitly generates six extras per team.
+	if (keptPlayers.length < (numPlayerPerTeam + 1) * activeTids.length) {
+		throw new Error("Not enough players!");
+	}
+
 	const maxNumFreeAgents = Math.round(
 		(activeTids.length / 3) * g.get("maxRosterSize"),
 	); // 150 for basketball
@@ -173,6 +238,9 @@ const createRandomPlayers = async ({
 	}
 
 	const teamJerseyNumbers: Record<number, string[]> = {};
+	const playersByTid = new Map(
+		activeTids.map((tid) => [tid, [] as PlayerWithoutKey[]]),
+	);
 
 	const teamsByTid = groupByUnique(teams, "tid");
 
@@ -206,6 +274,7 @@ const createRandomPlayers = async ({
 		}
 
 		players.push(p);
+		playersByTid.get(tid2)!.push(p);
 	};
 
 	const probStillOnDraftTeam = (p: PlayerWithoutKey) => {
@@ -256,6 +325,16 @@ const createRandomPlayers = async ({
 	}
 	keptPlayers = keptPlayers.filter((p) => !playersStayedOnOwnTeam.has(p));
 
+	// Soccer does not need the expensive team-OVR fit calculation used by some
+	// draft sports. The pool is already sorted best-first, and every generated
+	// player is eligible while filling the initial 30-player rosters. Reverse it
+	// once so each selection is an O(1) pop rather than repeatedly scanning and
+	// copying a pool of thousands of players.
+	const fastRosterAssignment = isSport("soccer");
+	if (fastRosterAssignment) {
+		keptPlayers.reverse();
+	}
+
 	// Then add other players, up to the limit
 	while (true) {
 		// Random order tids, so no team is a superpower
@@ -269,13 +348,17 @@ const createRandomPlayers = async ({
 				continue;
 			}
 
-			const p = freeAgents.getBest(
-				players.filter((p2) => p2.tid === currentTid),
-				keptPlayers,
-			);
+			const p = fastRosterAssignment
+				? keptPlayers.pop()
+				: freeAgents.getBest(playersByTid.get(currentTid)!, keptPlayers);
 
 			if (p) {
-				keptPlayers = keptPlayers.filter((p2) => p2 !== p);
+				if (!fastRosterAssignment) {
+					const index = keptPlayers.indexOf(p);
+					if (index >= 0) {
+						keptPlayers.splice(index, 1);
+					}
+				}
 				await addPlayerToTeam(p, currentTid);
 			} else {
 				console.log(currentTid, "can't find player");
@@ -286,6 +369,10 @@ const createRandomPlayers = async ({
 		if (numTeamsDone === activeTids.length) {
 			break;
 		}
+	}
+
+	if (fastRosterAssignment) {
+		keptPlayers.reverse();
 	}
 
 	// Assume this is all 0 for a new league

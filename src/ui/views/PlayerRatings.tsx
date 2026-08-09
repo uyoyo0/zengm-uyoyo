@@ -41,6 +41,7 @@ const PlayerRatings = ({
 			basketball: false,
 			football: true,
 			hockey: true,
+			soccer: true,
 		})
 	) {
 		for (const pos of POSITIONS) {
@@ -73,6 +74,7 @@ const PlayerRatings = ({
 				basketball: false,
 				football: true,
 				hockey: true,
+				soccer: true,
 			})
 		) {
 			for (const pos of POSITIONS) {

@@ -38,6 +38,10 @@ import type { NewLeagueTeam } from "../../../ui/views/NewLeague/types.ts";
 import { CUMULATIVE_OBJECTS } from "../../api/leagueFileUpload.ts";
 import { Cache, connectLeague, idb } from "../../db/index.ts";
 import {
+	CURRENT_SPORT,
+	isLeagueForCurrentSport,
+} from "../../db/leagueSport.ts";
+import {
 	helpers,
 	local,
 	lock,
@@ -50,7 +54,10 @@ import g, { wrapNewValueIfCurrentlyWrapped } from "../../util/g.ts";
 import type { Settings } from "../../views/settings.ts";
 import { getAutoTicketPriceByTid } from "../game/attendance.ts";
 import addRelatives from "../realRosters/addRelatives.ts";
-import deriveTendencies from "../realRosters/deriveTendencies.basketball.ts";
+import deriveTendencies, {
+	DERIVED_TENDENCY_NOISE,
+	deriveTendenciesPerSeason,
+} from "../realRosters/deriveTendencies.basketball.ts";
 import loadDataBasketball from "../realRosters/loadData.basketball.ts";
 import loadStatsBasketball, {
 	type BasketballStats,
@@ -74,6 +81,7 @@ import type { NewLeagueSettings } from "../../views/newLeague.ts";
 import { getNumPlayersTradedAwayNormalized } from "../player/getNumPlayersTradedAwayNormalized.ts";
 import { applyRealTeamInfo } from "../../../common/applyRealTeamInfo.ts";
 import { isSport } from "../../../common/sportFunctions.ts";
+import { initializeSoccerWorld } from "../soccer/initializeWorld.ts";
 import { last } from "../../../common/utils.ts";
 import { newLeagueGodModeLimits } from "../../util/newLeagueGodModeLimits.ts";
 import { choice, shuffle } from "../../../common/random.ts";
@@ -103,6 +111,7 @@ const addLeagueMeta = async ({
 
 	const l: League = {
 		lid,
+		sport: CURRENT_SPORT,
 		name,
 		tid,
 		phaseText: "",
@@ -121,6 +130,10 @@ const addLeagueMeta = async ({
 	// In case we are importing over the currently open league
 	if (g.get("lid") === lid) {
 		await close(true);
+	}
+	const existingLeague = await idb.meta.get("leagues", lid);
+	if (existingLeague && !(await isLeagueForCurrentSport(existingLeague))) {
+		throw new Error("Cannot overwrite a league from another sport");
 	}
 
 	// Claim the meta row atomically: read/delete/add in one transaction, so a
@@ -1218,7 +1231,9 @@ const beforeDBStream = async ({
 		realStats,
 
 		// realTendencies is already in getLeagueOptions (real leagues) or applied
-		// in afterDBStream (cross-era leagues); it's not a game attribute
+		// in afterDBStream (cross-era leagues); it's not a game attribute.
+		// (realTendenciesSeasonality/realTendencyDeterminism stay in
+		// otherSettings - they ARE game attributes, used again each preseason.)
 		realTendencies,
 
 		...otherSettings
@@ -1402,6 +1417,7 @@ const afterDBStream = async ({
 	randomization,
 	realPlayerPhotos,
 	realTendencies,
+	realTendenciesSeasonality,
 	repeatSeason,
 	scoutingLevel,
 	shuffleRosters,
@@ -1416,6 +1432,7 @@ const afterDBStream = async ({
 	randomization: Settings["randomization"];
 	realPlayerPhotos: RealPlayerPhotos | undefined;
 	realTendencies: Settings["realTendencies"];
+	realTendenciesSeasonality: Settings["realTendenciesSeasonality"];
 } & Pick<
 	CreateStreamProps,
 	"crossEra" | "fromFile" | "getLeagueOptions" | "lid" | "shuffleRosters"
@@ -1514,18 +1531,21 @@ const afterDBStream = async ({
 			});
 
 	// Cross-era rosters were generated (getRandomTeams) before the user picked
-	// the Player Tendencies setting, in the default "historical" (with
-	// variation) mode. If another mode was chosen, re-derive here. Gated on
-	// crossEra so players from imported custom teams are never rewritten.
-	let crossEraTendenciesMode: "historicalExact" | "skill" | undefined;
+	// the Player Tendencies settings, in the default "historical" (with
+	// variation) full-seasonality mode. If another mode or seasonality was
+	// chosen, re-derive here. Gated on crossEra so players from imported
+	// custom teams are never rewritten.
+	let crossEraTendenciesMode:
+		"historical" | "historicalExact" | "skill" | undefined;
 	let crossEraStatsBySlug: Map<string, BasketballStats["stats"]> | undefined;
+	const crossEraSeasonality = realTendenciesSeasonality ?? 1;
 	if (
 		crossEra &&
 		isSport("basketball") &&
-		(realTendencies === "historicalExact" || realTendencies === "skill")
+		(realTendencies !== "historical" || crossEraSeasonality !== 1)
 	) {
 		crossEraTendenciesMode = realTendencies;
-		if (realTendencies === "historicalExact") {
+		if (realTendencies !== "skill") {
 			const { stats } = await loadStatsBasketball();
 			crossEraStatsBySlug = new Map();
 			for (const row of stats) {
@@ -1550,14 +1570,27 @@ const afterDBStream = async ({
 
 			for (const p of t.players) {
 				if (crossEraTendenciesMode && typeof p.srID === "string") {
-					const careerStats = crossEraStatsBySlug?.get(p.srID) ?? [];
-					const tendencies = deriveTendencies(
-						careerStats,
-						p.ratings.at(-1),
-						crossEraTendenciesMode === "skill" ? 9 : 0,
-					);
-					for (const row of p.ratings) {
-						Object.assign(row, tendencies);
+					if (crossEraTendenciesMode === "skill") {
+						const tendencies = deriveTendencies([], p.ratings, 9);
+						for (const row of p.ratings) {
+							Object.assign(row, tendencies);
+						}
+					} else {
+						const careerStats = crossEraStatsBySlug?.get(p.srID) ?? [];
+						const bySeason = deriveTendenciesPerSeason(
+							careerStats,
+							p.ratings,
+							crossEraSeasonality,
+							crossEraTendenciesMode === "historical"
+								? DERIVED_TENDENCY_NOISE
+								: 0,
+						);
+						for (const row of p.ratings) {
+							const tendencies = bySeason.get(row.season);
+							if (tendencies) {
+								Object.assign(row, tendencies);
+							}
+						}
 					}
 				}
 
@@ -1717,6 +1750,9 @@ const afterDBStream = async ({
 	idb.cache = new Cache();
 	idb.cache.newLeague = true;
 	await idb.cache.fill(gameAttributes.season);
+	if (isSport("soccer")) {
+		await initializeSoccerWorld(gameAttributes.season);
+	}
 
 	const gameAttributesToUpdate: Partial<GameAttributesLeagueWithHistory> = {
 		...gameAttributes,
@@ -1730,8 +1766,13 @@ const afterDBStream = async ({
 	delete gameAttributesToUpdate.teamInfoCache;
 
 	// Need this before calling setGameAttributes, so the "cola" draftType can see recent top draft picks
-	for (const p of activePlayers) {
-		await idb.cache.players.put(p);
+	const playerCacheBatchSize = 500;
+	for (let i = 0; i < activePlayers.length; i += playerCacheBatchSize) {
+		await Promise.all(
+			activePlayers
+				.slice(i, i + playerCacheBatchSize)
+				.map((p) => idb.cache.players.put(p)),
+		);
 	}
 
 	// Write gameAttributes to DB in special way, to get extra functionality from setGameAttributes and because it's not in the database native format in leagueData (object, not array like others).
@@ -1956,6 +1997,7 @@ const createStream = async (
 		randomization: settings.randomization,
 		realPlayerPhotos,
 		realTendencies: settings.realTendencies,
+		realTendenciesSeasonality: settings.realTendenciesSeasonality,
 		repeatSeason,
 		scoutingLevel,
 		shuffleRosters,

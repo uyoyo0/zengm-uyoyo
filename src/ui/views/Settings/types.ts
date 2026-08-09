@@ -86,6 +86,8 @@ export type Key =
 	| "randomization"
 	| "realStats"
 	| "realTendencies"
+	| "realTendenciesSeasonality"
+	| "realTendencyDeterminism"
 	| "hideDisabledTeams"
 	| "hofFactor"
 	| "injuries"

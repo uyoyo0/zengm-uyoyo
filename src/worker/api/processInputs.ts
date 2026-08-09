@@ -695,6 +695,7 @@ const playerStats = (params: Params) => {
 		basketball: "perGame",
 		football: "passing",
 		hockey: "skater",
+		soccer: "standard",
 	});
 
 	let season: "career" | "all" | number;
@@ -777,6 +778,7 @@ const playerStatDists = (params: Params) => {
 		basketball: "perGame",
 		football: "passing",
 		hockey: "skater",
+		soccer: "standard",
 	});
 	return {
 		season: validateSeason(params.season),

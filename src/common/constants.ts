@@ -4,6 +4,7 @@ import * as constantsBaseball from "./constants.baseball.ts";
 import * as constantsBasketball from "./constants.basketball.ts";
 import * as constantsFootball from "./constants.football.ts";
 import * as constantsHockey from "./constants.hockey.ts";
+import * as constantsSoccer from "./constants.soccer.ts";
 import type {
 	CompositeWeights,
 	Phase,
@@ -33,9 +34,10 @@ export const DRAFT_BY_TEAM_OVR = bySport({
 	basketball: false,
 	football: true,
 	hockey: true,
+	soccer: false,
 });
 
-export const LEAGUE_DATABASE_VERSION = 79;
+export const LEAGUE_DATABASE_VERSION = 80;
 
 export const NO_LOTTERY_DRAFT_TYPES = new Set<DraftType>([
 	"freeAgents",
@@ -111,6 +113,7 @@ export const COMPOSITE_WEIGHTS = bySport<CompositeWeights>({
 	basketball: constantsBasketball.COMPOSITE_WEIGHTS,
 	football: constantsFootball.COMPOSITE_WEIGHTS,
 	hockey: constantsHockey.COMPOSITE_WEIGHTS,
+	soccer: constantsSoccer.COMPOSITE_WEIGHTS,
 });
 
 export const PLAYER_GAME_STATS = bySport<{
@@ -124,6 +127,7 @@ export const PLAYER_GAME_STATS = bySport<{
 	basketball: constantsBasketball.PLAYER_GAME_STATS,
 	football: constantsFootball.PLAYER_GAME_STATS,
 	hockey: constantsHockey.PLAYER_GAME_STATS,
+	soccer: constantsSoccer.PLAYER_GAME_STATS,
 });
 
 export const PLAYER_SUMMARY = bySport<{
@@ -142,6 +146,7 @@ export const PLAYER_SUMMARY = bySport<{
 	basketball: constantsBasketball.PLAYER_SUMMARY,
 	football: constantsFootball.PLAYER_SUMMARY,
 	hockey: constantsHockey.PLAYER_SUMMARY,
+	soccer: constantsSoccer.PLAYER_SUMMARY,
 });
 
 export const PLAYER_STATS_TABLES = bySport<{
@@ -156,6 +161,7 @@ export const PLAYER_STATS_TABLES = bySport<{
 	basketball: constantsBasketball.PLAYER_STATS_TABLES,
 	football: constantsFootball.PLAYER_STATS_TABLES,
 	hockey: constantsHockey.PLAYER_STATS_TABLES,
+	soccer: constantsSoccer.PLAYER_STATS_TABLES,
 });
 
 export const RATINGS = bySport<any[]>({
@@ -163,6 +169,7 @@ export const RATINGS = bySport<any[]>({
 	basketball: constantsBasketball.RATINGS,
 	football: constantsFootball.RATINGS,
 	hockey: constantsHockey.RATINGS,
+	soccer: constantsSoccer.RATINGS,
 });
 
 // Behavioral tendencies (basketball only).
@@ -178,6 +185,7 @@ export const POSITION_COUNTS: Record<string, number> = bySport({
 	basketball: constantsBasketball.POSITION_COUNTS,
 	football: constantsFootball.POSITION_COUNTS,
 	hockey: constantsHockey.POSITION_COUNTS,
+	soccer: constantsSoccer.POSITION_COUNTS,
 });
 
 export const POSITIONS = bySport<any[]>({
@@ -185,6 +193,7 @@ export const POSITIONS = bySport<any[]>({
 	basketball: constantsBasketball.POSITIONS,
 	football: constantsFootball.POSITIONS,
 	hockey: constantsHockey.POSITIONS,
+	soccer: constantsSoccer.POSITIONS,
 });
 
 export const TEAM_STATS_TABLES = bySport<
@@ -201,6 +210,7 @@ export const TEAM_STATS_TABLES = bySport<
 	basketball: constantsBasketball.TEAM_STATS_TABLES,
 	football: constantsFootball.TEAM_STATS_TABLES,
 	hockey: constantsHockey.TEAM_STATS_TABLES,
+	soccer: constantsSoccer.TEAM_STATS_TABLES,
 });
 
 export const TIME_BETWEEN_GAMES: string = bySport({
@@ -220,6 +230,7 @@ export const SIMPLE_AWARDS = bySport<Readonly<string[]>>({
 	basketball: constantsBasketball.SIMPLE_AWARDS,
 	football: constantsFootball.SIMPLE_AWARDS,
 	hockey: constantsHockey.SIMPLE_AWARDS,
+	soccer: constantsSoccer.SIMPLE_AWARDS,
 });
 
 export const AWARD_NAMES = bySport<Record<string, string>>({
@@ -227,6 +238,7 @@ export const AWARD_NAMES = bySport<Record<string, string>>({
 	basketball: constantsBasketball.AWARD_NAMES,
 	football: constantsFootball.AWARD_NAMES,
 	hockey: constantsHockey.AWARD_NAMES,
+	soccer: constantsSoccer.AWARD_NAMES,
 });
 
 export const DEFAULT_CONFS = bySport({
@@ -234,6 +246,7 @@ export const DEFAULT_CONFS = bySport({
 	basketball: constantsBasketball.DEFAULT_CONFS,
 	football: constantsFootball.DEFAULT_CONFS,
 	hockey: constantsHockey.DEFAULT_CONFS,
+	soccer: constantsSoccer.DEFAULT_CONFS,
 });
 
 export const DEFAULT_DIVS = bySport({
@@ -241,6 +254,7 @@ export const DEFAULT_DIVS = bySport({
 	basketball: constantsBasketball.DEFAULT_DIVS,
 	football: constantsFootball.DEFAULT_DIVS,
 	hockey: constantsHockey.DEFAULT_DIVS,
+	soccer: constantsSoccer.DEFAULT_DIVS,
 });
 
 export const DEFAULT_STADIUM_CAPACITY = bySport({
@@ -248,6 +262,7 @@ export const DEFAULT_STADIUM_CAPACITY = bySport({
 	basketball: 25000,
 	football: 70000,
 	hockey: 17500,
+	soccer: 30000,
 });
 
 export const COURT = bySport({
@@ -255,6 +270,7 @@ export const COURT = bySport({
 	basketball: "court",
 	football: "field",
 	hockey: "ice",
+	soccer: "pitch",
 });
 
 export const EMAIL_ADDRESS = "jeremy@zengm.com";
@@ -264,6 +280,7 @@ export const GAME_ACRONYM = bySport({
 	basketball: "BBGM",
 	football: "FBGM",
 	hockey: "ZGMH",
+	soccer: "SGM",
 });
 
 export const GAME_NAME = bySport({
@@ -271,6 +288,7 @@ export const GAME_NAME = bySport({
 	basketball: "Basketball GM",
 	football: "Football GM",
 	hockey: "ZenGM Hockey",
+	soccer: "Soccer GM",
 });
 
 export const SUBREDDIT_NAME = bySport({
@@ -278,6 +296,7 @@ export const SUBREDDIT_NAME = bySport({
 	basketball: "BasketballGM",
 	football: "Football_GM",
 	hockey: "ZenGMHockey",
+	soccer: "SoccerGM",
 });
 
 export const TWITTER_HANDLE = bySport({
@@ -303,6 +322,7 @@ export const REAL_PLAYERS_INFO = bySport({
 	},
 	football: undefined,
 	hockey: undefined,
+	soccer: undefined,
 });
 
 export const WEBSITE_PLAY = bySport({
@@ -310,6 +330,7 @@ export const WEBSITE_PLAY = bySport({
 	basketball: "play.basketball-gm.com",
 	football: "play.football-gm.com",
 	hockey: "hockey.zengm.com",
+	soccer: "localhost",
 });
 
 export const WEBSITE_ROOT = bySport({
@@ -317,6 +338,7 @@ export const WEBSITE_ROOT = bySport({
 	basketball: "basketball-gm.com",
 	football: "football-gm.com",
 	hockey: "zengm.com/hockey",
+	soccer: "localhost",
 });
 
 // For subscribers who have not renewed yet, give them a 3 day grace period before showing ads again, because sometimes it takes a little extra tim for the payment to process
@@ -366,6 +388,7 @@ export const DEFAULT_JERSEY = bySport({
 	basketball: "jersey3",
 	football: "football",
 	hockey: "hockey",
+	soccer: "soccer",
 });
 
 export const JERSEYS = bySport({
@@ -403,6 +426,9 @@ export const JERSEYS = bySport({
 		hockey4: "Stripe 3",
 		hockey2: "Plain",
 	},
+	soccer: {
+		soccer: "Solid",
+	},
 });
 
 // Target: 90% in playThroughInjuriesFactor
@@ -411,6 +437,7 @@ export const DEFAULT_PLAY_THROUGH_INJURIES = bySport<[number, number]>({
 	basketball: [0, 4],
 	football: [0, 2],
 	hockey: [0, 4],
+	soccer: [0, 4],
 });
 
 // Neutral coaching style (all dials at 0). Used as the default for every team
@@ -433,6 +460,7 @@ export const ALL_STAR_GAME_ONLY = bySport({
 	basketball: false,
 	football: true,
 	hockey: true,
+	soccer: true,
 });
 
 export const DEFAULT_PHASE_CHANGE_REDIRECTS = [1, 3, 4, 5, 7, 8] as Phase[];
@@ -519,6 +547,7 @@ export const DEPTH_CHART_NAME = bySport({
 	basketball: undefined,
 	football: "Depth Chart",
 	hockey: "Lines",
+	soccer: "Tactics",
 });
 
 export const DEFAULT_TEAM_COLORS: [string, string, string] = [
@@ -531,6 +560,7 @@ export const STARTING_NUM_TIMEOUTS = bySport({
 	baseball: undefined,
 	football: 3,
 	hockey: undefined,
+	soccer: undefined,
 
 	// Should actually be 7, but since timeouts are only used at the end of the game currently, it's silly to have those extra 5 timeouts lying around all game
 	basketball: 2,
@@ -587,6 +617,15 @@ export const SKILLS = bySport<Record<string, string>>({
 		E: "Enforcer",
 		S: "Sniper",
 	},
+	soccer: {
+		P: "Pace",
+		C: "Creator",
+		Dr: "Dribbler",
+		F: "Finisher",
+		A: "Aerial threat",
+		D: "Defender",
+		G: "Goalkeeper",
+	},
 });
 
 export const NOT_REAL_POSITIONS = new Set(
@@ -595,6 +634,7 @@ export const NOT_REAL_POSITIONS = new Set(
 		basketball: [],
 		football: ["KR", "PR"],
 		hockey: [],
+		soccer: [],
 	}),
 );
 

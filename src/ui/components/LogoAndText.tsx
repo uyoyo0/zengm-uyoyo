@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { GAME_NAME } from "../../common/constants.ts";
+import { isSport } from "../../common/sportFunctions.ts";
 
 type Props = {
 	gold?: boolean;
@@ -21,7 +22,7 @@ const LogoAndText = memo(({ gold, inLeague, updating }: Props) => {
 				className="spin"
 				width="18"
 				height="18"
-				src={gold ? "/ico/logo-gold.png" : "/ico/logo.png"}
+				src={isSport("soccer") ? "/ico/icon.svg" : gold ? "/ico/logo-gold.png" : "/ico/logo.png"}
 				style={{
 					animationPlayState: updating ? "running" : "paused",
 				}}

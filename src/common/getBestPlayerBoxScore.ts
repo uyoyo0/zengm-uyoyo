@@ -119,5 +119,22 @@ export const getBestPlayerBoxScore = (players: any[]) => {
 
 			return withFactors(factors);
 		},
+		soccer: () => {
+			const factors: [string, number][] = [
+				["g", 4],
+				["a", 3],
+				["matchRating", 1],
+				["sv", 0.12],
+				["cs", 0.8],
+				["kp", 0.08],
+				["drbCmp", 0.08],
+				["prgC", 0.05],
+				["prgP", 0.01],
+				["tkl", 0.05],
+				["int", 0.08],
+			];
+
+			return withFactors(factors);
+		},
 	})();
 };

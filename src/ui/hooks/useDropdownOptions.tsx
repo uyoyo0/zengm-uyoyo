@@ -349,6 +349,7 @@ const useDropdownOptions = (
 				"goalie",
 				...(field === "statTypesAdv" ? ["advanced", "gameHighs"] : []),
 			],
+			soccer: ["standard", "passing", "defending", "goalkeeping", "gameHighs"],
 		});
 	} else if (field === "statTypesStrict") {
 		keys = bySport({
@@ -356,6 +357,7 @@ const useDropdownOptions = (
 			basketball: ["perGame", "per36", "totals"],
 			football: ["totals"],
 			hockey: ["totals"],
+			soccer: ["totals"],
 		});
 	} else if (field === "awardType") {
 		// Sync wtih optionsTmp

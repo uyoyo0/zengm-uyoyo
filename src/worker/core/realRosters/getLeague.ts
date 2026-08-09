@@ -1,5 +1,11 @@
 import loadDataBasketball, { type Basketball } from "./loadData.basketball.ts";
-import loadStatsBasketball from "./loadStats.basketball.ts";
+import loadStatsBasketball, {
+	type BasketballStats,
+} from "./loadStats.basketball.ts";
+import deriveTendencies, {
+	DERIVED_TENDENCY_NOISE,
+	deriveTendenciesPerSeason,
+} from "./deriveTendencies.basketball.ts";
 import formatScheduledEvents from "./formatScheduledEvents.ts";
 import { orderBy, range } from "../../../common/utils.ts";
 import type {
@@ -265,6 +271,53 @@ const getLeague = async (options: GetLeagueOptions) => {
 					(row) => row.slug,
 				);
 
+				// Replacing p.ratings below discards the tendencies/anchors that
+				// formatPlayerFactory derived, so re-derive them here, with the
+				// per-season window centered on the AGE-equivalent real season (a
+				// re-debuted player at career-year 3 gets his real career-year-3
+				// identity, matching how his ratings are chosen).
+				const rdTendencies = options.realTendencies ?? "historical";
+				const rdSeasonality = options.realTendenciesSeasonality ?? 1;
+				const rdNoise =
+					rdTendencies === "historical"
+						? DERIVED_TENDENCY_NOISE
+						: rdTendencies === "skill"
+							? 9
+							: 0;
+				let rdStatsBySlug: Map<string, BasketballStats["stats"]> | undefined;
+				if (rdTendencies !== "skill") {
+					const { stats } = await loadStatsBasketball();
+					rdStatsBySlug = new Map();
+					for (const row of stats) {
+						const existing = rdStatsBySlug.get(row.slug);
+						if (existing) {
+							existing.push(row);
+						} else {
+							rdStatsBySlug.set(row.slug, [row]);
+						}
+					}
+				}
+				const applyRandomDebutTendencies = (
+					p: { srID: string },
+					row: OnlyRatings,
+					realSeason: number,
+				) => {
+					if (rdTendencies === "skill") {
+						Object.assign(row, deriveTendencies([], [row], rdNoise));
+						return;
+					}
+					const careerStats = rdStatsBySlug!.get(p.srID) ?? [];
+					const tendencies = deriveTendenciesPerSeason(
+						careerStats,
+						[{ ...row, season: realSeason }],
+						rdSeasonality,
+						rdNoise,
+					).get(realSeason);
+					if (tendencies) {
+						Object.assign(row, tendencies);
+					}
+				};
+
 				for (const [p, draftYear] of Iterator.zip([toRandomize, draftYears], {
 					mode: "strict",
 				})) {
@@ -311,7 +364,9 @@ const getLeague = async (options: GetLeagueOptions) => {
 							ratings = sorted[0]!;
 						}
 
-						p.ratings = [getOnlyRatings(ratings)];
+						const onlyRatings = getOnlyRatings(ratings);
+						p.ratings = [onlyRatings];
+						applyRandomDebutTendencies(p, onlyRatings, ratings.season);
 					} else {
 						// Draft prospect
 						p.tid = PLAYER.UNDRAFTED;
@@ -337,6 +392,8 @@ const getLeague = async (options: GetLeagueOptions) => {
 								bio,
 							);
 						}
+						// Prospect identity = his real rookie-era self.
+						applyRandomDebutTendencies(p, currentRatings, rookieRatings.season);
 
 						// Delete stuff that may have been added on, for randomDebutsKeepCurrent if stats are kept
 						p.stats = [];

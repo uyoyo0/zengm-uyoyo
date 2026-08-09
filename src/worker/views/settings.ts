@@ -72,6 +72,8 @@ type Key =
 	| "challengeSisyphusMode"
 	| "challengeThanosMode"
 	| "realPlayerDeterminism"
+	| "realTendenciesSeasonality"
+	| "realTendencyDeterminism"
 	| "repeatSeason"
 	| "maxOvertimes"
 	| "maxOvertimesPlayoffs"
@@ -198,8 +200,7 @@ export type Settings = Pick<
 	>
 > & {
 	repeatSeason:
-		| NonNullable<GameAttributesLeague["repeatSeason"]>["type"]
-		| "disabled";
+		NonNullable<GameAttributesLeague["repeatSeason"]>["type"] | "disabled";
 	noStartingInjuries: boolean;
 	realDraftRatings: Exclude<
 		GameAttributesLeague["realDraftRatings"],
@@ -292,6 +293,8 @@ const updateSettings = async (inputs: unknown, updateEvents: UpdateEvents) => {
 			challengeSisyphusMode: g.get("challengeSisyphusMode"),
 			challengeThanosMode: g.get("challengeThanosMode"),
 			realPlayerDeterminism: g.get("realPlayerDeterminism"),
+			realTendenciesSeasonality: g.get("realTendenciesSeasonality"),
+			realTendencyDeterminism: g.get("realTendencyDeterminism"),
 			repeatSeason: g.get("repeatSeason")?.type ?? "disabled",
 			maxOvertimes: g.get("maxOvertimes"),
 			maxOvertimesPlayoffs: g.get("maxOvertimesPlayoffs"),

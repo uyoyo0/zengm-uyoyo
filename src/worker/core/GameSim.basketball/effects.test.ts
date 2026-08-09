@@ -303,7 +303,10 @@ test("tendency: neutral 2P mix lands at target rim/post shares", async () => {
 		}
 	};
 	const [a, b] = await run({ patch0: patchMix, patch1: patchMix });
-	const rimShare = ratio(a.fgaAtRim + b.fgaAtRim, a.fga + b.fga - a.tpa - b.tpa);
+	const rimShare = ratio(
+		a.fgaAtRim + b.fgaAtRim,
+		a.fga + b.fga - a.tpa - b.tpa,
+	);
 	const postShare = ratio(
 		a.fgaLowPost + b.fgaLowPost,
 		a.fga + b.fga - a.tpa - b.tpa,
@@ -324,6 +327,33 @@ test("tendency: atRim raises at-rim share (equal skill)", async () => {
 		`[tendencyAtRim] at-rim share: hi=${pct(atRimRate(a))} lo=${pct(atRimRate(b))}`,
 	);
 	assert(atRimRate(a) > atRimRate(b));
+});
+
+test("ftrDraw: real FT-rate targets drive free-throw volume", async () => {
+	// Team 0's players carry a foul-magnet career FT rate, team 1's a
+	// jump-shooter's; realized team FTA/FGA must separate accordingly and land
+	// near the targets (non-shooting fouls add a floor on the low side).
+	const [hi, lo] = await run({
+		patch0: setRating("ftrDraw", 0.45),
+		patch1: setRating("ftrDraw", 0.15),
+		n: 40,
+	});
+	const ftr = (t: Totals) => ratio(t.fta, t.fga);
+	report(
+		`[ftrDraw] target .45 -> ${pct(ftr(hi))} | target .15 -> ${pct(ftr(lo))}`,
+	);
+	assert(
+		ftr(hi) > ftr(lo) * 1.6,
+		`FT-rate targets should separate: ${ftr(hi)} vs ${ftr(lo)}`,
+	);
+	assert(
+		ftr(hi) > 0.3 && ftr(hi) < 0.62,
+		`high target out of band: ${ftr(hi)}`,
+	);
+	assert(
+		ftr(lo) > 0.06 && ftr(lo) < 0.26,
+		`low target out of band: ${ftr(lo)}`,
+	);
 });
 
 test("tendency: post raises low-post share (equal skill)", async () => {

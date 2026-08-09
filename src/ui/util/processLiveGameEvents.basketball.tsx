@@ -495,8 +495,14 @@ const processLiveGameEvents = ({
 				e.s === "pf" ||
 				e.s === "pts"
 			) {
-				const p = playersByPid[e.pid!];
-				(p as any)[e.s] += e.amt;
+				// pid can be undefined for team-only stats: a missed end-of-period
+				// heave is charged to the team, not the shooter (NBA heave rule).
+				if (e.pid != null) {
+					const p = playersByPid[e.pid];
+					if (p) {
+						(p as any)[e.s] += e.amt;
+					}
+				}
 				boxScore.teams[actualT!][e.s] += e.amt;
 
 				if (e.s === "pts") {

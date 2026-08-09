@@ -5,6 +5,7 @@ export const bySport = <T>(
 				basketball: T;
 				football: T;
 				hockey: T;
+				soccer?: T;
 				default?: T;
 		  }
 		| {
@@ -12,6 +13,7 @@ export const bySport = <T>(
 				basketball?: T;
 				football?: T;
 				hockey?: T;
+				soccer?: T;
 				default: T;
 		  },
 ): T => {
@@ -20,6 +22,12 @@ export const bySport = <T>(
 		// https://github.com/microsoft/TypeScript/issues/21732
 		// @ts-expect-error
 		return object[sport];
+	}
+
+	if (sport === "soccer" && Object.hasOwn(object, "hockey")) {
+		// Soccer explicitly overrides sport-specific behavior. Falling back to
+		// hockey keeps generic team-sport UI branches backwards compatible.
+		return object.hockey as T;
 	}
 
 	if (Object.hasOwn(object, "default")) {
@@ -32,7 +40,7 @@ export const bySport = <T>(
 };
 
 export const isSport = (
-	sport: "baseball" | "basketball" | "football" | "hockey",
+	sport: "baseball" | "basketball" | "football" | "hockey" | "soccer",
 ) => {
 	return sport === process.env.SPORT;
 };

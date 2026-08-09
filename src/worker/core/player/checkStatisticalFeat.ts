@@ -5,6 +5,7 @@ import checkStatisticalFeatBaseball from "./checkStatisticalFeat.baseball.ts";
 import checkStatisticalFeatBasketball from "./checkStatisticalFeat.basketball.ts";
 import checkStatisticalFeatFootball from "./checkStatisticalFeat.football.ts";
 import checkStatisticalFeatHockey from "./checkStatisticalFeat.hockey.ts";
+import checkStatisticalFeatSoccer from "./checkStatisticalFeat.soccer.ts";
 import type {
 	Conditions,
 	GamePlayer,
@@ -19,6 +20,7 @@ const checkPlayer = bySport({
 	basketball: checkStatisticalFeatBasketball,
 	football: checkStatisticalFeatFootball,
 	hockey: checkStatisticalFeatHockey,
+	soccer: checkStatisticalFeatSoccer,
 });
 
 const checkStatisticalFeat = (

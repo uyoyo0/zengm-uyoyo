@@ -1,11 +1,11 @@
 import { league } from "../core/index.ts";
-import { idb } from "./index.ts";
+import { getLeaguesForCurrentSport } from "./leagueSport.ts";
 import { logEvent } from "../util/index.ts";
 
 const reset = async (type: "all" | "unstarred") => {
 	// Delete any current league databases
 	console.log("Deleting any current league databases...");
-	const leagues = await idb.meta.getAll("leagues");
+	const leagues = await getLeaguesForCurrentSport();
 	let numDeleted = 0;
 	for (const l of leagues) {
 		if (type === "unstarred" && l.starred) {
@@ -19,11 +19,6 @@ const reset = async (type: "all" | "unstarred") => {
 			text: `Deleted ${numDeleted} of ${leagues.length} leagues...`,
 			saveToDb: false,
 		});
-	}
-
-	// Delete all leagues from meta database, completely! For zombie entries in meta.
-	if (type === "all") {
-		await (await idb.meta.transaction("leagues", "readwrite")).store.clear();
 	}
 };
 

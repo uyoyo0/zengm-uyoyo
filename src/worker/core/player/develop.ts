@@ -48,6 +48,7 @@ export const monteCarloPot = async ({
 				usePotEstimator || g.get("numActiveTeams") >= TOO_MANY_TEAMS_TOO_SLOW,
 			football: true,
 			hockey: true,
+			soccer: true,
 		})
 	) {
 		let ovr;

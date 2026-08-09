@@ -479,6 +479,57 @@ export const RatingsOverview = ({
 				],
 			},
 		],
+		soccer: [
+			{
+				Physical: [
+					{ label: "Height", rating: "hgt" },
+					{ label: "Strength", rating: "stre" },
+					{ label: "Speed", rating: "spd" },
+					{ label: "Acceleration", rating: "acc" },
+					{ label: "Endurance", rating: "endu" },
+				],
+			},
+			{
+				Technical: [
+					{ label: "Passing", rating: "pas" },
+					{ label: "First Touch", rating: "ftc" },
+					{ label: "Dribbling", rating: "drb" },
+					{ label: "Crossing", rating: "crs" },
+					{ label: "Finishing", rating: "fin" },
+					{ label: "Long Shots", rating: "sht" },
+					{ label: "Heading", rating: "hea" },
+				],
+			},
+			{
+				Mental: [
+					{
+						label: (
+							<>
+								<span className="d-md-none">Att</span>
+								<span className="d-none d-md-inline">Attacking</span> IQ
+							</>
+						),
+						rating: "oiq",
+					},
+					{
+						label: (
+							<>
+								<span className="d-md-none">Def</span>
+								<span className="d-none d-md-inline">Defensive</span> IQ
+							</>
+						),
+						rating: "diq",
+					},
+					{ label: "Composure", rating: "cmp" },
+					{ label: "Tackling", rating: "tck" },
+				],
+				Goalkeeping: [
+					{ label: "Reflexes", rating: "gkr" },
+					{ label: "Handling", rating: "gkh" },
+					{ label: "Positioning", rating: "gkp" },
+				],
+			},
+		],
 	});
 
 	// Generic physical ratings not included in posRatings
@@ -492,6 +543,10 @@ export const RatingsOverview = ({
 			? ["hgt", "stre", "spd", "endu"]
 			: ["hgt", "stre", "spd"],
 		hockey: currentSeason.pos === "G" ? [] : ["hgt", "stre", "spd", "endu"],
+		soccer:
+			currentSeason.pos === "GK"
+				? ["hgt"]
+				: ["hgt", "stre", "spd", "acc", "endu"],
 	});
 
 	// For non-basketball sports, only highlight ratings that are relevant to position
@@ -540,10 +595,18 @@ export const RatingsOverview = ({
 								<table>
 									<tbody>
 										{categories.map(({ label, rating }, j) => {
-											const highlightStyle = toHighlight.has(rating)
-												? ratingsGradientStyle(currentSeason[rating])
+											const currentRaw = currentSeason[rating];
+											const previousRaw = lastSeason[rating];
+											const current = Number.isFinite(currentRaw)
+												? currentRaw
 												: undefined;
-											const current = currentSeason[rating];
+											const previous = Number.isFinite(previousRaw)
+												? previousRaw
+												: undefined;
+											const highlightStyle =
+												current !== undefined && toHighlight.has(rating)
+													? ratingsGradientStyle(current)
+													: undefined;
 											const paddingTop = { paddingTop: 2 };
 											return (
 												<tr key={j}>
@@ -551,22 +614,27 @@ export const RatingsOverview = ({
 														<div className="flex-grow-1">
 															<div className="d-flex">
 																<span>{label}:&nbsp;</span>
-																<span className="ms-auto">{current}</span>
+																<span className="ms-auto">
+																	{current ?? "—"}
+																</span>
 															</div>
 															<div
 																style={{
 																	...highlightStyle,
 																	height: 2,
-																	width: `${current < 50 ? 100 - current : current}%`,
+																	width:
+																		current === undefined
+																			? 0
+																			: `${current < 50 ? 100 - current : current}%`,
 																	marginTop: -4,
 																}}
 															/>
 														</div>
 													</td>
 													<td className="px-0 pb-0 ps-1" style={paddingTop}>
-														<RatingWithChange
-															change={current - lastSeason[rating]}
-														/>
+														{current !== undefined && previous !== undefined ? (
+															<RatingWithChange change={current - previous} />
+														) : null}
 													</td>
 												</tr>
 											);
@@ -578,6 +646,16 @@ export const RatingsOverview = ({
 					</div>
 				))}
 			</div>
+			{isSport("basketball") && (currentSeason as any).tendencyMixSource ? (
+				<div className="text-body-secondary small mt-1">
+					Shot mix:{" "}
+					{(currentSeason as any).tendencyMixSource === "located"
+						? "real shot-location data"
+						: (currentSeason as any).tendencyMixSource === "estimated"
+							? "estimated from career stats"
+							: "ratings-based"}
+				</div>
+			) : null}
 		</div>
 	);
 };

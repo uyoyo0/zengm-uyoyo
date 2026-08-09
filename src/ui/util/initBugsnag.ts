@@ -2,7 +2,10 @@ import Bugsnag from "@bugsnag/browser";
 import BugsnagPluginReact from "@bugsnag/plugin-react";
 
 Bugsnag.start({
-	apiKey: window.bugsnagKey,
+	// Private/local builds intentionally do not have a Bugsnag project. Bugsnag
+	// still needs to start so its React error-boundary plugin is available, but
+	// the development release stage prevents reports from being sent.
+	apiKey: window.bugsnagKey || "00000000000000000000000000000000",
 	appVersion: window.bbgmVersion,
 	autoTrackSessions: false,
 	onError: (event) => {
@@ -33,5 +36,5 @@ Bugsnag.start({
 	],
 	enabledReleaseStages: ["beta", "production"],
 	plugins: [new BugsnagPluginReact()],
-	releaseStage: window.releaseStage,
+	releaseStage: window.bugsnagKey ? window.releaseStage : "development",
 });

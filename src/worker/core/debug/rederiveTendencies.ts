@@ -1,9 +1,9 @@
 import { isSport } from "../../../common/sportFunctions.ts";
-import { last } from "../../../common/utils.ts";
 import { idb } from "../../db/index.ts";
-import { toUI } from "../../util/index.ts";
-import deriveTendencies, {
+import { g, toUI } from "../../util/index.ts";
+import {
 	DERIVED_TENDENCY_NOISE,
+	deriveTendenciesPerSeason,
 } from "../realRosters/deriveTendencies.basketball.ts";
 import loadStatsBasketball from "../realRosters/loadStats.basketball.ts";
 
@@ -14,12 +14,18 @@ import loadStatsBasketball from "../realRosters/loadStats.basketball.ts";
 // a modern volume shooter. Run from the console:
 //   bbgm.debug.rederiveTendencies() - historical with variation (league default)
 //   bbgm.debug.rederiveTendencies("historicalExact") - deterministic
+//   bbgm.debug.rederiveTendencies("historical", 0) - career-aggregate identity
+// The second arg (0-1) is tendency seasonality: how strongly each ratings row
+// tracks that specific season of the player's career. Defaults to the
+// league's Tendency Seasonality setting.
 const rederiveTendencies = async (
 	mode: "historical" | "historicalExact" = "historical",
+	seasonality?: number,
 ) => {
 	if (!isSport("basketball")) {
 		throw new Error("Only supported for basketball");
 	}
+	seasonality ??= g.get("realTendenciesSeasonality") ?? 1;
 
 	const { stats } = await loadStatsBasketball();
 	const statsBySlug = new Map<string, typeof stats>();
@@ -34,6 +40,7 @@ const rederiveTendencies = async (
 
 	let numUpdated = 0;
 	let numSkipped = 0;
+	const sourceCounts = { located: 0, estimated: 0, skill: 0 };
 
 	const tx = idb.league.transaction("players", "readwrite");
 	for await (const cursor of tx.store) {
@@ -47,13 +54,22 @@ const rederiveTendencies = async (
 		}
 
 		const careerStats = statsBySlug.get(p.srID) ?? [];
-		const tendencies = deriveTendencies(
+		const bySeason = deriveTendenciesPerSeason(
 			careerStats,
-			last(p.ratings) as any,
+			p.ratings as any,
+			seasonality,
 			mode === "historical" ? DERIVED_TENDENCY_NOISE : 0,
 		);
+		let counted = false;
 		for (const r of p.ratings) {
-			Object.assign(r, tendencies);
+			const tendencies = bySeason.get((r as any).season);
+			if (tendencies) {
+				Object.assign(r, tendencies);
+				if (!counted) {
+					sourceCounts[tendencies.tendencyMixSource] += 1;
+					counted = true;
+				}
+			}
 		}
 		await cursor.update(p);
 		numUpdated += 1;
@@ -62,6 +78,9 @@ const rederiveTendencies = async (
 
 	console.log(
 		`Re-derived tendencies for ${numUpdated} real players (${numSkipped} non-real players unchanged).`,
+	);
+	console.log(
+		`Shot mix sources: ${sourceCounts.located} from real location data, ${sourceCounts.estimated} estimated from box stats, ${sourceCounts.skill} ratings-based.`,
 	);
 	await idb.cache.fill();
 	await toUI("realtimeUpdate", [["firstRun"]]);

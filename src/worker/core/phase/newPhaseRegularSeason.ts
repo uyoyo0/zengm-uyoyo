@@ -10,6 +10,7 @@ import {
 	TWITTER_HANDLE,
 } from "../../../common/constants.ts";
 import { isSport } from "../../../common/sportFunctions.ts";
+import scheduleSoccerSeason from "../soccer/scheduleSeason.ts";
 
 class GameHasYourTeamCache {
 	cache: Record<number, boolean> = {};
@@ -149,7 +150,11 @@ const newPhaseRegularSeason = async (
 		"noCopyCache",
 	);
 
-	await season.setSchedule(await season.newSchedule(teams));
+	if (isSport("soccer")) {
+		await scheduleSoccerSeason();
+	} else {
+		await season.setSchedule(await season.newSchedule(teams));
+	}
 
 	await deleteOldBoxScores();
 

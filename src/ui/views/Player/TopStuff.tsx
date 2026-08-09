@@ -131,6 +131,7 @@ const StatsSummary = ({
 					basketball: row.ws,
 					football: row.av,
 					hockey: row.ps,
+					soccer: row.matchRating,
 				})!;
 				if (value > maxValue) {
 					ps = row;
@@ -162,6 +163,7 @@ const StatsSummary = ({
 		basketball: [0, 5, 9],
 		football: [0, 2],
 		hockey: onlyShowIf?.includes("G") ? [0, 3] : [0, 5],
+		soccer: onlyShowIf?.includes("GK") ? [0, 2, 4] : [0, 2, 4, 6],
 	});
 
 	const showPeakSeason = p.tid === PLAYER.RETIRED && season === undefined;

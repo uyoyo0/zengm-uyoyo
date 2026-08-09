@@ -136,6 +136,7 @@ const calculateSeasonLeaders = async (
 		basketball: "perGame",
 		football: "totals",
 		hockey: "totals",
+		soccer: "totals",
 	});
 
 	const gamesPlayedCache = new GamesPlayedCache();

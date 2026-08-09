@@ -1,5 +1,6 @@
 import { build } from "rolldown";
 import { injectManifest } from "workbox-build";
+import { getSport } from "../lib/getSport.ts";
 
 // NOTE: This should be run *AFTER* all assets are built
 export const buildSw = async () => {
@@ -14,8 +15,7 @@ export const buildSw = async () => {
 			"img/logos-primary/*.svg",
 			"img/logos-secondary/*.svg",
 			"ico/icon.svg",
-			"ico/logo.png",
-			"ico/logo-gold.png",
+			...(getSport() === "soccer" ? [] : ["ico/logo.png", "ico/logo-gold.png"]),
 		],
 		dontCacheBustURLsMatching: /gen\/.*\.(js|css)/,
 		globIgnores: ["gen/real-player-*.json", "upgrade-50/*"],

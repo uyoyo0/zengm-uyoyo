@@ -24,6 +24,7 @@ export const extraRatings = bySport({
 	basketball: [],
 	football: ["ovrs", "pots"],
 	hockey: ["ovrs", "pots"],
+	soccer: ["ovrs", "pots"],
 });
 
 export const getActivePlayoffTids = async () => {
@@ -279,6 +280,7 @@ const updatePlayers = async (
 				"diq",
 				"glk",
 			],
+			soccer: RATINGS,
 		});
 
 		const players = addFirstNameShort(

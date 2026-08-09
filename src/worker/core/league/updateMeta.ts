@@ -1,6 +1,8 @@
 import type { League } from "../../../common/types.ts";
 import { idb } from "../../db/index.ts";
 import { g, local } from "../../util/index.ts";
+import { isSport } from "../../../common/sportFunctions.ts";
+import { CURRENT_SPORT } from "../../db/leagueSport.ts";
 
 const updateMeta = async (
 	updates?: Partial<Exclude<League, "lid">>,
@@ -19,6 +21,7 @@ const updateMeta = async (
 		if (!l) {
 			throw new Error(`No league with lid ${lid} found`);
 		}
+		l.sport ??= CURRENT_SPORT;
 
 		if (updates) {
 			Object.assign(l, updates);
@@ -37,7 +40,9 @@ const updateMeta = async (
 						if (g.get("userTids").length > 1) {
 							l.teamName = "Multi Team Mode";
 							l.teamRegion = "";
-							l.imgURL = `https://zengm.com/files/logo-${process.env.SPORT}.svg`;
+							l.imgURL = isSport("soccer")
+								? "/ico/icon.svg"
+								: `https://zengm.com/files/logo-${process.env.SPORT}.svg`;
 						} else {
 							l.teamName = teamInfo.name;
 							l.teamRegion = teamInfo.region;

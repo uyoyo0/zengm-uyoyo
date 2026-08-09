@@ -1,3 +1,7 @@
+import { isSport } from "../../common/sportFunctions.ts";
+
+const depthView = isSport("soccer") ? "soccerTactics" : "depth";
+
 export const routeInfos = {
 	// Non-league views
 	"/": "dashboard",
@@ -25,6 +29,9 @@ export const routeInfos = {
 	"/l/:lid/standings": "standings",
 	"/l/:lid/standings/:season": "standings",
 	"/l/:lid/standings/:season/:type": "standings",
+	"/l/:lid/competitions": "soccerCompetitions",
+	"/l/:lid/transfer_market": "soccerTransferMarket",
+	"/l/:lid/tactics": "soccerTactics",
 	"/l/:lid/playoffs": "playoffs",
 	"/l/:lid/playoffs/:season": "playoffs",
 	"/l/:lid/league_finances": "leagueFinances",
@@ -156,10 +163,12 @@ export const routeInfos = {
 	"/l/:lid/transactions/:abbrev/:season": "transactions",
 	"/l/:lid/transactions/:abbrev/:season/:eventType": "transactions",
 	"/l/:lid/danger_zone": "dangerZone",
-	"/l/:lid/depth": "depth",
-	"/l/:lid/depth/:pos": "depth",
-	"/l/:lid/depth/:pos/:abbrev": "depth",
-	"/l/:lid/depth/:pos/:abbrev/:playoffs": "depth",
+	// Keep old bookmarks and dashboard links working in Soccer GM. Soccer uses
+	// the tactics editor in place of the depth-chart view.
+	"/l/:lid/depth": depthView,
+	"/l/:lid/depth/:pos": depthView,
+	"/l/:lid/depth/:pos/:abbrev": depthView,
+	"/l/:lid/depth/:pos/:abbrev/:playoffs": depthView,
 	"/l/:lid/frivolities": "frivolities",
 	"/l/:lid/frivolities/colleges": "colleges",
 	"/l/:lid/frivolities/countries": "countries",

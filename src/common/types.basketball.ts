@@ -185,6 +185,31 @@ export type PlayerRatings = {
 	// encode absolute shot shares; the sim then skips era scaling
 	// (threePointTendencyFactor) for this player.
 	tendencyAbsolute?: boolean;
+	// How the interior shot mix (tendencyAtRim) was sourced for a real player:
+	// "located" = real shot-location data (bbref, 1997+, via
+	// tools/import-shot-locations.ts), "estimated" = estimated from career box
+	// stats, "skill" = ratings-based fallback (no usable career sample).
+	tendencyMixSource?: "located" | "estimated" | "skill";
+	// Per-zone accuracy corrections for real players (bounded probMake deltas
+	// vs the ratings model, from real career percentages; see
+	// shotAccuracy.basketball.ts). Absent/0 = pure ratings model.
+	accAtRim?: number;
+	accLowPost?: number;
+	accMidRange?: number;
+	accThree?: number;
+	accFT?: number;
+	// Career FTA/FGA foul-draw target for real players (absolute, like the
+	// shot-mix tendencies); absent = drawingFouls-composite fallback.
+	ftrDraw?: number;
+	// Last real-data season behind the derived tendencies; preseason drift
+	// only reshapes a real player's identity once the league simulates past
+	// this. Absent = no real data (fictional players), drift always applies.
+	tendencyDataEnd?: number;
+	// The REAL season the current tendencies represent. Advanced by one each
+	// preseason and used (instead of the league calendar) to walk the player's
+	// career arc, so cross-era vintages and random debuts age through their
+	// own careers.
+	tendencyVintage?: number;
 
 	// Fan popularity (0-100). Mostly emergent: performance, style, awards,
 	// clutch play, tenure, draft pedigree. Updated each preseason from last

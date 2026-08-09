@@ -5,6 +5,178 @@ type ColTemp = Omit<Col, "title"> & {
 	title?: string;
 };
 
+const soccerSpecificCols: Record<string, ColTemp> = {};
+soccerSpecificCols["stat:keyStats"] = {
+	desc: "Key Statistics",
+	title: "Key Stats",
+};
+soccerSpecificCols["stat:keyStatsWithGoalieGP"] = {
+	desc: "Key Statistics",
+	title: "Key Stats",
+};
+for (const [position, description] of Object.entries({
+	GK: "Goalkeeper",
+	CB: "Centre Back",
+	LB: "Left Back",
+	RB: "Right Back",
+	DM: "Defensive Midfielder",
+	CM: "Central Midfielder",
+	AM: "Attacking Midfielder",
+	LW: "Left Winger",
+	RW: "Right Winger",
+	ST: "Striker",
+})) {
+	soccerSpecificCols[`pos:${position}`] = {
+		desc: description,
+		sortType: "number",
+		title: position,
+	};
+	for (const [prefix, label] of [
+		["ovr", "Ovr"],
+		["pot", "Pot"],
+	] as const) {
+		soccerSpecificCols[`rating:${prefix}${position}`] = {
+			desc: `${label === "Ovr" ? "Overall" : "Potential"} Rating (${position})`,
+			sortSequence: ["desc", "asc"],
+			sortType: "number",
+			title: `${label}${position}`,
+		};
+	}
+}
+for (const [rating, title, description] of [
+	["hgt", "Hgt", "Height"],
+	["stre", "Str", "Strength"],
+	["spd", "Spd", "Speed"],
+	["acc", "Acc", "Acceleration"],
+	["endu", "End", "Endurance"],
+	["pas", "Pas", "Passing"],
+	["ftc", "Fst", "First Touch"],
+	["drb", "Drb", "Dribbling"],
+	["crs", "Crs", "Crossing"],
+	["fin", "Fin", "Finishing"],
+	["sht", "Sht", "Long Shots"],
+	["hea", "Hea", "Heading"],
+	["tck", "Tck", "Tackling"],
+	["oiq", "oIQ", "Attacking Intelligence"],
+	["diq", "dIQ", "Defensive Intelligence"],
+	["cmp", "Cmp", "Composure"],
+	["gkr", "GKR", "Goalkeeper Reflexes"],
+	["gkh", "GKH", "Goalkeeper Handling"],
+	["gkp", "GKP", "Goalkeeper Positioning"],
+] as const) {
+	soccerSpecificCols[`rating:${rating}`] = {
+		desc: description,
+		sortSequence: ["desc", "asc"],
+		sortType: "number",
+		title,
+	};
+}
+for (const [stat, title, description] of [
+	["gp", "GP", "Games Played"],
+	["gs", "GS", "Games Started"],
+	["min", "Min", "Minutes"],
+	["g", "G", "Goals"],
+	["a", "A", "Assists"],
+	["sh", "Sh", "Shots"],
+	["sot", "SoT", "Shots on Target"],
+	["xg", "xG", "Expected Goals"],
+	["xa", "xA", "Expected Assists"],
+	["kp", "KP", "Key Passes"],
+	["pas", "Pass", "Passes"],
+	["pasCmp", "Cmp", "Completed Passes"],
+	["pasPct", "Cmp%", "Pass Completion Percentage"],
+	["tkl", "Tkl", "Tackles"],
+	["int", "Int", "Interceptions"],
+	["clr", "Clr", "Clearances"],
+	["aw", "AW", "Aerial Duels Won"],
+	["aa", "AA", "Aerial Duels Attempted"],
+	["aerialPct", "Aerial%", "Aerial Win Percentage"],
+	["fl", "Fls", "Fouls"],
+	["yc", "YC", "Yellow Cards"],
+	["rc", "RC", "Red Cards"],
+	["sv", "Sv", "Saves"],
+	["ga", "GA", "Goals Against"],
+	["cs", "CS", "Clean Sheets"],
+	["svPct", "Sv%", "Save Percentage"],
+	["matchRating", "Rat", "Match Rating"],
+	["gd", "GD", "Goal Difference"],
+	["posPct", "Poss%", "Possession Percentage"],
+	["cor", "Cor", "Corners"],
+	["oppG", "Opp G", "Opponent Goals"],
+	["oppSh", "Opp Sh", "Opponent Shots"],
+	["oppSot", "Opp SoT", "Opponent Shots on Target"],
+	["oppXg", "Opp xG", "Opponent Expected Goals"],
+	["oppPosPct", "Opp Poss%", "Opponent Possession"],
+	["oppPas", "Opp Pass", "Opponent Passes"],
+	["oppPasCmp", "Opp Cmp", "Opponent Completed Passes"],
+	["oppCor", "Opp Cor", "Opponent Corners"],
+	["oppFl", "Opp Fls", "Opponent Fouls"],
+	["oppYc", "Opp YC", "Opponent Yellow Cards"],
+	["oppRc", "Opp RC", "Opponent Red Cards"],
+	["gMax", "G", "Game High Goals"],
+	["aMax", "A", "Game High Assists"],
+	["shMax", "Sh", "Game High Shots"],
+	["sotMax", "SoT", "Game High Shots on Target"],
+	["svMax", "Sv", "Game High Saves"],
+	["matchRatingMax", "Rat", "Game High Match Rating"],
+] as const) {
+	soccerSpecificCols[`stat:${stat}`] = {
+		desc: description,
+		sortSequence: ["desc", "asc"],
+		sortType: "number",
+		title,
+	};
+}
+
+for (const [stat, title, description] of [
+	["drbAtt", "DrbA", "Dribbles Attempted"],
+	["drbCmp", "Drb", "Successful Dribbles"],
+	["drbPct", "Drb%", "Successful Dribble Percentage"],
+	["prgP", "PrgP", "Progressive Passes"],
+	["prgC", "PrgC", "Progressive Carries"],
+	["crs", "Crs", "Crosses Attempted"],
+	["crsCmp", "CrsC", "Completed Crosses"],
+	["crsPct", "Crs%", "Completed Cross Percentage"],
+	["recov", "Rec", "Ball Recoveries"],
+	["possLost", "Lost", "Possessions Lost"],
+	["prs", "Prs", "Pressures Applied"],
+	["prsWon", "PrsW", "Successful Pressures"],
+	["prsPct", "Prs%", "Successful Pressure Percentage"],
+	["blk", "Blk", "Shots Blocked"],
+	["fouled", "Fld", "Fouls Won"],
+	["off", "Off", "Offsides"],
+	["penG", "PK", "Penalty Goals"],
+	["penA", "PKA", "Penalties Attempted"],
+	["penM", "PKM", "Penalties Missed"],
+	["penWon", "PKwon", "Penalties Won"],
+	["penCon", "PKcon", "Penalties Conceded"],
+	["psxg", "PSxG", "Post-Shot Expected Goals"],
+	["goalsPrevented", "GPrv", "Goals Prevented Above Expected"],
+	["gkClaims", "Clm", "Goalkeeper Claims"],
+	["subIn", "SubIn", "Substitute Appearances"],
+	["subOut", "SubOut", "Times Substituted Off"],
+	["g90", "G/90", "Goals per 90 Minutes"],
+	["a90", "A/90", "Assists per 90 Minutes"],
+	["xg90", "xG/90", "Expected Goals per 90 Minutes"],
+	["xa90", "xA/90", "Expected Assists per 90 Minutes"],
+	["drbCmp90", "Drb/90", "Successful Dribbles per 90 Minutes"],
+	["prgP90", "PrgP/90", "Progressive Passes per 90 Minutes"],
+	["prgC90", "PrgC/90", "Progressive Carries per 90 Minutes"],
+	["tkl90", "Tkl/90", "Tackles per 90 Minutes"],
+	["int90", "Int/90", "Interceptions per 90 Minutes"],
+	["recov90", "Rec/90", "Ball Recoveries per 90 Minutes"],
+	["prsWon90", "PrsW/90", "Successful Pressures per 90 Minutes"],
+	["drbCmpMax", "Drb", "Game High Successful Dribbles"],
+	["prgCMax", "PrgC", "Game High Progressive Carries"],
+] as const) {
+	soccerSpecificCols[`stat:${stat}`] = {
+		desc: description,
+		sortSequence: ["desc", "asc"],
+		sortType: "number",
+		title,
+	};
+}
+
 const gp = isSport("hockey") ? "GP" : "G";
 
 const sportSpecificCols = bySport<{
@@ -3064,6 +3236,7 @@ const sportSpecificCols = bySport<{
 			title: "ppPTS/60",
 		},
 	},
+	soccer: soccerSpecificCols,
 });
 const cols: {
 	[key: string]: ColTemp;

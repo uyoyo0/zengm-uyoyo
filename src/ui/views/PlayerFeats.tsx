@@ -198,11 +198,22 @@ const PlayerFeats = ({
 						<span className="text-info">highlighted in blue</span>.
 					</p>
 				),
+				soccer: (
+					<p>
+						This lists hat tricks, substitute braces, three-assist games,
+						four-plus goal contributions, high-volume goalkeeper clean sheets,
+						defensive masterclasses, and exceptional passing performances.
+						Statistical feats from your players are{" "}
+						<span className="text-info">highlighted in blue</span>.
+					</p>
+				),
 			})}
 
 			<DataTable
 				cols={cols}
-				defaultSort={[23, "desc"]}
+				defaultSort={
+					isSport("soccer") ? [stats.length + 5, "desc"] : [23, "desc"]
+				}
 				defaultStickyCols={window.mobile ? 0 : 1}
 				name="PlayerFeats"
 				rows={rows}

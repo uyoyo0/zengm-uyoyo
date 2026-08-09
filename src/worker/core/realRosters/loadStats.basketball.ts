@@ -46,6 +46,13 @@ export type BasketballStats = {
 		fgaLowPost?: number;
 		fgMidRange?: number;
 		fgaMidRange?: number;
+		// Real shot-location data by distance (bbref bins, 1997+), added locally
+		// by tools/import-shot-locations.ts. 0-3 ft = at the rim; 3-10 ft =
+		// floater/short zone; the 10+ ft 2P remainder is derivable from fga/tpa.
+		fgaDist03?: number;
+		fgDist03?: number;
+		fgaDist310?: number;
+		fgDist310?: number;
 		pm?: number;
 		ba?: number;
 		dd?: number;

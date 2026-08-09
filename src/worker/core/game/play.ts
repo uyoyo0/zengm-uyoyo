@@ -44,6 +44,7 @@ import {
 } from "../../util/recomputeLocalUITeamOvrs.ts";
 import { isSport } from "../../../common/sportFunctions.ts";
 import { last } from "../../../common/utils.ts";
+import recordSoccerMatch from "../soccer/recordMatch.ts";
 
 /**
  * Play one or more days of games.
@@ -72,7 +73,15 @@ const play = async (
 
 		// Check to see if the season is over
 		const schedule = await season.getSchedule();
-		if (g.get("phase") < PHASE.PLAYOFFS) {
+		if (isSport("soccer") && g.get("phase") < PHASE.PLAYOFFS) {
+			if (schedule.length === 0) {
+				await phase.newPhase(
+					PHASE.DRAFT_LOTTERY,
+					conditions,
+					gidOneGame !== undefined,
+				);
+			}
+		} else if (g.get("phase") < PHASE.PLAYOFFS) {
 			if (schedule.length === 0) {
 				await phase.newPhase(
 					PHASE.PLAYOFFS,
@@ -128,6 +137,9 @@ const play = async (
 		let gameToUi: LocalStateUI["games"][number] | undefined;
 		const gidsFinished = await Promise.all(
 			results.map(async (result) => {
+				if (isSport("soccer")) {
+					await recordSoccerMatch(result);
+				}
 				const att = await writeTeamStats(result);
 
 				const maybeGameToUi = await writeGameStats(result, att, conditions);
@@ -145,7 +157,6 @@ const play = async (
 				await idb.cache.schedule.delete(gid);
 			}
 		}
-
 		// Invalidate leaders cache, if it exists
 		local.seasonLeaders = undefined;
 
@@ -480,6 +491,20 @@ const play = async (
 						doPlayByPlay,
 						homeCourtFactor,
 					});
+					Object.assign(result, {
+						compId: game.compId,
+						competitionStage: game.competitionStage,
+						tieId: game.tieId,
+						requiresWinner: game.requiresWinner,
+					});
+					if (
+						game.requiresWinner &&
+						result.team[0].stat.pts === result.team[1].stat.pts
+					) {
+						const homeWonShootout = Math.random() < 0.55;
+						result.team[0].stat.sPts = homeWonShootout ? 5 : 4;
+						result.team[1].stat.sPts = homeWonShootout ? 4 : 5;
+					}
 
 					const winner = getWinner([result.team[0].stat, result.team[1].stat]);
 					let wonTid: number | undefined;
@@ -551,6 +576,20 @@ const play = async (
 					doPlayByPlay,
 					neutralSite,
 				});
+				Object.assign(result, {
+					compId: game.compId,
+					competitionStage: game.competitionStage,
+					tieId: game.tieId,
+					requiresWinner: game.requiresWinner,
+				});
+				if (
+					game.requiresWinner &&
+					result.team[0].stat.pts === result.team[1].stat.pts
+				) {
+					const homeWonShootout = Math.random() < 0.55;
+					result.team[0].stat.sPts = homeWonShootout ? 5 : 4;
+					result.team[1].stat.sPts = homeWonShootout ? 4 : 5;
+				}
 				results.push(result);
 			}
 		}
